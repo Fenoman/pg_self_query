@@ -542,8 +542,8 @@ pg_query_state(PG_FUNCTION_ARGS)
 		 * init and acquire lock so that any other concurrent calls of this fuction
 		 * can not occupy shared queue for transfering query state
 		 */
-		init_lock_tag(&tag, PG_QUERY_STATE_KEY);
-		LockAcquire(&tag, ExclusiveLock, false, false);
+		//init_lock_tag(&tag, PG_QUERY_STATE_KEY);
+		//LockAcquire(&tag, ExclusiveLock, false, false);
 
 		counterpart_user_id = GetRemoteBackendUserId(proc);
 		if (!(superuser() || GetUserId() == counterpart_user_id))
@@ -565,7 +565,7 @@ pg_query_state(PG_FUNCTION_ARGS)
 		if (list_length(msgs) == 0)
 		{
 			elog(WARNING, "backend does not reply");
-			LockRelease(&tag, ExclusiveLock, false);
+			//LockRelease(&tag, ExclusiveLock, false);
 			SRF_RETURN_DONE(funcctx);
 		}
 
@@ -582,12 +582,12 @@ pg_query_state(PG_FUNCTION_ARGS)
 					else
 						elog(INFO, "backend is not running query");
 
-					LockRelease(&tag, ExclusiveLock, false);
+					//LockRelease(&tag, ExclusiveLock, false);
 					SRF_RETURN_DONE(funcctx);
 				}
 			case STAT_DISABLED:
 				elog(INFO, "query execution statistics disabled");
-				LockRelease(&tag, ExclusiveLock, false);
+				//LockRelease(&tag, ExclusiveLock, false);
 				SRF_RETURN_DONE(funcctx);
 			case QS_RETURNED:
 				{
@@ -644,7 +644,7 @@ pg_query_state(PG_FUNCTION_ARGS)
 					TupleDescInitEntry(tupdesc, (AttrNumber) 5, "leader_pid", INT4OID, -1, 0);
 					funcctx->tuple_desc = BlessTupleDesc(tupdesc);
 
-					LockRelease(&tag, ExclusiveLock, false);
+					//LockRelease(&tag, ExclusiveLock, false);
 					MemoryContextSwitchTo(oldcontext);
 				}
 				break;

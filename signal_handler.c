@@ -43,7 +43,7 @@ runtime_explain()
 
 	/* initialize explain state with all config parameters */
 	es = NewExplainState();
-	es->analyze = true;
+	es->analyze = false;
 	es->verbose = params->verbose;
 	es->costs = params->costs;
 	es->buffers = params->buffers && pg_qs_buffers;
