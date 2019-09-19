@@ -486,10 +486,6 @@ pg_query_state(PG_FUNCTION_ARGS)
 		if (!module_initialized)
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 							errmsg("pg_query_state wasn't initialized yet")));
-
-		if (pid == MyProcPid)
-			ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-							errmsg("attempt to extract state of current process")));
 		proc = BackendPidGetProc(pid);
 		if (!proc || proc->backendId == InvalidBackendId)
 			ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
