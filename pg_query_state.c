@@ -694,13 +694,10 @@ GetRemoteBackendUserId(PGPROC *proc)
 		if (result != InvalidOid)
 			break;
 
-#if PG_VERSION_NUM < 100000
-		WaitLatch(MyLatch, WL_LATCH_SET, 0);
-#else
 		WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_EXTENSION);
-#endif
-		CHECK_FOR_INTERRUPTS();
 		ResetLatch(MyLatch);
+		// https://www.postgresql.org/message-id/E1bUIfB-0006DJ-3x@gemulon.postgresql.org
+		CHECK_FOR_INTERRUPTS();
 	}
 
 	return result;
@@ -735,20 +732,17 @@ shm_mq_receive_with_timeout(shm_mq_handle *mqh,
 		if (rc & WL_TIMEOUT || delay <= 0)
 			return SHM_MQ_WOULD_BLOCK;
 
-#if PG_VERSION_NUM < 100000
-		rc = WaitLatch(MyLatch, WL_LATCH_SET | WL_TIMEOUT, delay);
-#else
 		rc = WaitLatch(MyLatch, WL_LATCH_SET | WL_TIMEOUT, delay,
 					   PG_WAIT_EXTENSION);
-#endif
 
 		INSTR_TIME_SET_CURRENT(cur_time);
 		INSTR_TIME_SUBTRACT(cur_time, start_time);
 
 		delay = timeout - (long) INSTR_TIME_GET_MILLISEC(cur_time);
-
-		CHECK_FOR_INTERRUPTS();
+		
 		ResetLatch(MyLatch);
+		// https://www.postgresql.org/message-id/E1bUIfB-0006DJ-3x@gemulon.postgresql.org
+		CHECK_FOR_INTERRUPTS();
 	}
 }
 
