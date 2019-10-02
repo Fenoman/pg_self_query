@@ -478,7 +478,7 @@ pg_query_state(PG_FUNCTION_ARGS)
 		text			*format_text = PG_GETARG_TEXT_P(6);
 		ExplainFormat	 format;
 		PGPROC			*proc;
-		Oid				 counterpart_user_id;
+		//Oid				 counterpart_user_id;
 		shm_mq_msg		*msg;
 		List			*bg_worker_procs = NIL;
 		List			*msgs;
@@ -509,10 +509,10 @@ pg_query_state(PG_FUNCTION_ARGS)
 		//init_lock_tag(&tag, PG_QUERY_STATE_KEY);
 		//LockAcquire(&tag, ExclusiveLock, false, false);
 
-		counterpart_user_id = GetRemoteBackendUserId(proc);
-		if (!(superuser() || GetUserId() == counterpart_user_id))
-			ereport(ERROR, (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-							errmsg("permission denied")));
+		//counterpart_user_id = GetRemoteBackendUserId(proc);
+		//if (!(superuser() || GetUserId() == counterpart_user_id))
+		//	ereport(ERROR, (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+		//s					errmsg("permission denied")));
 
 		bg_worker_procs = GetRemoteBackendWorkers(proc);
 
