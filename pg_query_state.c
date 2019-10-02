@@ -694,8 +694,8 @@ GetRemoteBackendUserId(PGPROC *proc)
 		if (result != InvalidOid)
 			break;
 
-		WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_EXTENSION);
-		ResetLatch(MyLatch);
+		//WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_EXTENSION);
+		//ResetLatch(MyLatch);
 		// https://www.postgresql.org/message-id/E1bUIfB-0006DJ-3x@gemulon.postgresql.org
 		CHECK_FOR_INTERRUPTS();
 	}
