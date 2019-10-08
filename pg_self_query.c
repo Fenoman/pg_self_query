@@ -419,7 +419,7 @@ pg_self_query(PG_FUNCTION_ARGS)
 		//	ereport(ERROR, (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 		//					errmsg("permission denied")));
 
-		bg_worker_procs = GetRemoteBackendWorkers(proc);
+		//bg_worker_procs = GetRemoteBackendWorkers(proc);
 		elog(INFO, "SRF_IS_FIRSTCALL 4");
 		msgs = GetRemoteBackendQueryStates(proc,
 										   bg_worker_procs);
@@ -836,19 +836,14 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 
 	/* extract query state from leader process */
 	shm_mq_set_sender(mq, leader);
-	elog(INFO, "GetRemoteBackendQueryStates 6");
 	shm_mq_set_receiver(mq, MyProc);
-	elog(INFO, "GetRemoteBackendQueryStates 7");
 	mqh = shm_mq_attach(mq, NULL, NULL);
-	elog(INFO, "GetRemoteBackendQueryStates 8");
 	mq_receive_result = shm_mq_receive(mqh, &len, (void **) &msg, false);
-	elog(INFO, "GetRemoteBackendQueryStates 9");
 	if (mq_receive_result != SHM_MQ_SUCCESS)
 		goto mq_error;
 	Assert(len == msg->length);
 	result = lappend(result, copy_msg(msg));
 	shm_mq_detach(mqh);
-	elog(INFO, "GetRemoteBackendQueryStates 10");
 
 	/*
 	 * collect results from all alived parallel workers
