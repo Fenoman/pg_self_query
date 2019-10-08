@@ -397,7 +397,7 @@ pg_self_query(PG_FUNCTION_ARGS)
 		shm_mq_msg		*msg;
 		List			*bg_worker_procs = NIL;
 		List			*msgs;
-
+		elog(INFO, "SRF_IS_FIRSTCALL 1");
 		if (!module_initialized)
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 							errmsg("pg_self_query wasn't initialized yet")));
@@ -509,12 +509,13 @@ pg_self_query(PG_FUNCTION_ARGS)
 				}
 				break;
 		}
+		elog(INFO, "SRF_IS_FIRSTCALL 2");
 	}
 
 	/* restore function multicall context */
 	funcctx = SRF_PERCALL_SETUP();
 	fctx = funcctx->user_fctx;
-
+	elog(INFO, "SRF_PERCALL_SETUP 1");
 	if (funcctx->call_cntr < funcctx->max_calls)
 	{
 		HeapTuple 	 tuple;
@@ -538,11 +539,14 @@ pg_self_query(PG_FUNCTION_ARGS)
 
 		if (p_state->frame_cursor == NULL)
 			fctx->proc_cursor = lnext(fctx->proc_cursor);
-
+		elog(INFO, "SRF_PERCALL_SETUP 2 NEXT");
 		SRF_RETURN_NEXT(funcctx, HeapTupleGetDatum(tuple));
 	}
 	else
+	{
+		elog(INFO, "SRF_PERCALL_SETUP 2 DONE");
 		SRF_RETURN_DONE(funcctx);
+	}
 }
 
 static void
