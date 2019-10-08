@@ -24,6 +24,56 @@ typedef struct
 	const char	*query;
 } stack_frame;
 
+/*		
+  *	Get List of stack_frames as a stack of function calls starting from outermost call.		
+  *		Each entry contains query text and query state in form of EXPLAIN ANALYZE output.		
+  *	Assume extension is enabled and QueryDescStack is not empty		
+  */		
+ static List *		
+ runtime_explain()		
+ {		
+ 	ExplainState    *es;		
+ 	ListCell	    *i;		
+ 	List			*result = NIL;		
+
+  	Assert(list_length(QueryDescStack) > 0);		
+
+  	/* initialize explain state with all config parameters */		
+ 	//es = NewExplainState();		
+ 	//es->analyze = false;		
+ 	//es->verbose = false;		
+ 	//es->costs = false;		
+ 	//es->buffers = false;		
+ 	//es->timing = false;		
+ 	//es->summary = false;		
+ 	//es->format = "text";		
+ 	//es->runtime = true;		
+
+  	/* collect query state outputs of each plan entry of stack */		
+ 	foreach(i, QueryDescStack)		
+ 	{		
+ 		QueryDesc 	*currentQueryDesc = (QueryDesc *) lfirst(i);		
+ 		stack_frame	*qs_frame = palloc(sizeof(stack_frame));		
+
+  		/* save query text */		
+ 		qs_frame->query = currentQueryDesc->sourceText;		
+
+  		/* save plan with statistics */		
+ 		//initStringInfo(es->str);		
+ 		//ExplainBeginOutput(es);		
+ 		//ExplainPrintPlan(es, currentQueryDesc);		
+ 		//ExplainEndOutput(es);		
+
+  		/* Remove last line break */		
+ 		//if (es->str->len > 0 && es->str->data[es->str->len - 1] == '\n')		
+ 			//es->str->data[--es->str->len] = '\0';		
+
+  		result = lcons(qs_frame, result);		
+ 	}		
+
+  	return result;		
+ }
+
 /*
  * Compute length of serialized stack frame
  */
