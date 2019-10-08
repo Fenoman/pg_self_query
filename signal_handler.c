@@ -141,11 +141,11 @@ SendQueryState(void)
 	{
 		if (shm_mq_get_sender(mq) == MyProc)
 			break;
-		elog(INFO, "SendQueryState 1");
-		WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_IPC);
+		//elog(INFO, "SendQueryState 1");
+		//WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_IPC);
 		CHECK_FOR_INTERRUPTS();
-		ResetLatch(MyLatch);
-		elog(INFO, "SendQueryState 2");
+		//ResetLatch(MyLatch);
+		//elog(INFO, "SendQueryState 2");
 	}
 
 	mqh = shm_mq_attach(mq, NULL, NULL);
