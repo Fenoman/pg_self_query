@@ -410,8 +410,10 @@ pg_self_query(PG_FUNCTION_ARGS)
 		 * init and acquire lock so that any other concurrent calls of this fuction
 		 * can not occupy shared queue for transfering query state
 		 */
+		elog(INFO, "SRF_IS_FIRSTCALL 2");
 		init_lock_tag(&tag, PG_SELF_QUERY_KEY);
 		LockAcquire(&tag, ExclusiveLock, false, false);
+		elog(INFO, "SRF_IS_FIRSTCALL 3");
 
 		//counterpart_user_id = GetRemoteBackendUserId(proc);
 		//if (!(superuser() || GetUserId() == counterpart_user_id))
@@ -419,19 +421,21 @@ pg_self_query(PG_FUNCTION_ARGS)
 		//					errmsg("permission denied")));
 
 		bg_worker_procs = GetRemoteBackendWorkers(proc);
-
+		elog(INFO, "SRF_IS_FIRSTCALL 4");
 		msgs = GetRemoteBackendQueryStates(proc,
 										   bg_worker_procs);
-
+		elog(INFO, "SRF_IS_FIRSTCALL 5");
 		funcctx = SRF_FIRSTCALL_INIT();
 		if (list_length(msgs) == 0)
 		{
 			elog(WARNING, "backend does not reply");
 			LockRelease(&tag, ExclusiveLock, false);
 			SRF_RETURN_DONE(funcctx);
+			elog(INFO, "SRF_IS_FIRSTCALL 6");
 		}
 
 		msg = (shm_mq_msg *) linitial(msgs);
+		elog(INFO, "SRF_IS_FIRSTCALL 7");
 		switch (msg->result_code)
 		{
 			case QUERY_NOT_RUNNING:
@@ -445,11 +449,13 @@ pg_self_query(PG_FUNCTION_ARGS)
 						elog(INFO, "backend is not running query");
 
 					LockRelease(&tag, ExclusiveLock, false);
+					elog(INFO, "SRF_IS_FIRSTCALL 8");
 					SRF_RETURN_DONE(funcctx);
 				}
 			case STAT_DISABLED:
 				elog(INFO, "query execution statistics disabled");
 				LockRelease(&tag, ExclusiveLock, false);
+				elog(INFO, "SRF_IS_FIRSTCALL 9");
 				SRF_RETURN_DONE(funcctx);
 			case QS_RETURNED:
 				{
@@ -506,10 +512,11 @@ pg_self_query(PG_FUNCTION_ARGS)
 
 					LockRelease(&tag, ExclusiveLock, false);
 					MemoryContextSwitchTo(oldcontext);
+					elog(INFO, "SRF_IS_FIRSTCALL 10");
 				}
 				break;
 		}
-		elog(INFO, "SRF_IS_FIRSTCALL 2");
+		elog(INFO, "SRF_IS_FIRSTCALL END");
 	}
 
 	/* restore function multicall context */
