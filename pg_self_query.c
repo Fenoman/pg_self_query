@@ -824,23 +824,23 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 	elog(INFO, "GetRemoteBackendQueryStates 4");
 	if (sig_result == -1)
 		goto signal_error;
-	foreach(iter, pworkers)
-	{
-		PGPROC 	*proc = (PGPROC *) lfirst(iter);
-		if (!proc || !proc->pid)
-			continue;
-		sig_result = SendProcSignal(proc->pid,
-									QueryStatePollReason,
-									proc->backendId);
-		if (sig_result == -1)
-		{
-			if (errno != ESRCH)
-				goto signal_error;
-			continue;
-		}
-
-		alive_procs = lappend(alive_procs, proc);
-	}
+	//foreach(iter, pworkers)
+	//{
+	//	PGPROC 	*proc = (PGPROC *) lfirst(iter);
+	//	if (!proc || !proc->pid)
+	//		continue;
+	//	sig_result = SendProcSignal(proc->pid,
+	//								QueryStatePollReason,
+	//								proc->backendId);
+	//	if (sig_result == -1)
+	//	{
+	//		if (errno != ESRCH)
+	//			goto signal_error;
+	//		continue;
+	//	}
+//
+//		alive_procs = lappend(alive_procs, proc);
+//	}
 	elog(INFO, "GetRemoteBackendQueryStates 5");
 
 	/* extract query state from leader process */
@@ -862,33 +862,33 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 	/*
 	 * collect results from all alived parallel workers
 	 */
-	foreach(iter, alive_procs)
-	{
-		PGPROC 			*proc = (PGPROC *) lfirst(iter);
-
-		/* prepare message queue to transfer data */
-		mq = shm_mq_create(mq, QUEUE_SIZE);
-		shm_mq_set_sender(mq, proc);
-		shm_mq_set_receiver(mq, MyProc);	/* this function notifies the
-											   counterpart to come into data
-											   transfer */
-
-		/* retrieve result data from message queue */
-		mqh = shm_mq_attach(mq, NULL, NULL);
-		mq_receive_result = shm_mq_receive_with_timeout(mqh,
-														&len,
-														(void **) &msg,
-														MIN_TIMEOUT);
-		if (mq_receive_result != SHM_MQ_SUCCESS)
-			/* counterpart is died, not consider it */
-			continue;
-
-		Assert(len == msg->length);
-
-		/* aggregate result data */
-		result = lappend(result, copy_msg(msg));
-		shm_mq_detach(mqh);
-	}
+	//foreach(iter, alive_procs)
+	//{
+	//	PGPROC 			*proc = (PGPROC *) lfirst(iter);
+//
+//		/* prepare message queue to transfer data */
+//		mq = shm_mq_create(mq, QUEUE_SIZE);
+//		shm_mq_set_sender(mq, proc);
+//		shm_mq_set_receiver(mq, MyProc);	/* this function notifies the
+//											   counterpart to come into data
+//											   transfer */
+//
+//		/* retrieve result data from message queue */
+//		mqh = shm_mq_attach(mq, NULL, NULL);
+//		mq_receive_result = shm_mq_receive_with_timeout(mqh,
+//														&len,
+//														(void **) &msg,
+//														MIN_TIMEOUT);
+//		if (mq_receive_result != SHM_MQ_SUCCESS)
+//			/* counterpart is died, not consider it */
+//			continue;
+//
+//		Assert(len == msg->length);
+//
+//		/* aggregate result data */
+//		result = lappend(result, copy_msg(msg));
+//		shm_mq_detach(mqh);
+//	}
 	elog(INFO, "GetRemoteBackendQueryStates 11");
 	return result;
 
