@@ -371,7 +371,7 @@ deserialize_stack(char *src, int stack_depth)
  */
 PG_FUNCTION_INFO_V1(pg_self_query);
 Datum
-pg_self_query()
+pg_self_query(PG_FUNCTION_ARGS)
 {
 	typedef struct
 	{
