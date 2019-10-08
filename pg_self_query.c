@@ -84,13 +84,7 @@ static void SendBgWorkerPids(void);
 static Oid GetRemoteBackendUserId(PGPROC *proc);
 static List *GetRemoteBackendWorkers(PGPROC *proc);
 static List *GetRemoteBackendQueryStates(PGPROC *leader,
-										 List *pworkers,
-										 bool verbose,
-										 bool costs,
-										 bool timing,
-										 bool buffers,
-										 bool triggers,
-										 ExplainFormat format);
+										 List *pworkers);
 
 /* Shared memory variables */
 shm_toc			*toc = NULL;
@@ -377,7 +371,7 @@ deserialize_stack(char *src, int stack_depth)
  */
 PG_FUNCTION_INFO_V1(pg_self_query);
 Datum
-pg_self_query(PG_FUNCTION_ARGS)
+pg_self_query()
 {
 	typedef struct
 	{
@@ -398,12 +392,11 @@ pg_self_query(PG_FUNCTION_ARGS)
 	MemoryContext	oldcontext;
 	pg_qs_fctx		*fctx;
 #define		N_ATTRS  3
-	pid_t			pid = PG_GETARG_INT32(0);
+	pid_t			pid = MyProcPid;
 
 	if (SRF_IS_FIRSTCALL())
 	{
 		LOCKTAG			 tag;
-		ExplainFormat	 format;
 		PGPROC			*proc;
 		Oid				 counterpart_user_id;
 		shm_mq_msg		*msg;
@@ -418,13 +411,12 @@ pg_self_query(PG_FUNCTION_ARGS)
 			ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 							errmsg("backend with pid=%d not found", pid)));
 
-		format = EXPLAIN_FORMAT_TEXT;
 		/*
 		 * init and acquire lock so that any other concurrent calls of this fuction
 		 * can not occupy shared queue for transfering query state
 		 */
-		//init_lock_tag(&tag, PG_SELF_QUERY_KEY);
-		//LockAcquire(&tag, ExclusiveLock, false, false);
+		init_lock_tag(&tag, PG_SELF_QUERY_KEY);
+		LockAcquire(&tag, ExclusiveLock, false, false);
 
 		counterpart_user_id = GetRemoteBackendUserId(proc);
 		if (!(superuser() || GetUserId() == counterpart_user_id))
@@ -434,19 +426,13 @@ pg_self_query(PG_FUNCTION_ARGS)
 		bg_worker_procs = GetRemoteBackendWorkers(proc);
 
 		msgs = GetRemoteBackendQueryStates(proc,
-										   bg_worker_procs,
-										   verbose,
-										   costs,
-										   timing,
-										   buffers,
-										   triggers,
-										   format);
+										   bg_worker_procs);
 
 		funcctx = SRF_FIRSTCALL_INIT();
 		if (list_length(msgs) == 0)
 		{
 			elog(WARNING, "backend does not reply");
-			//LockRelease(&tag, ExclusiveLock, false);
+			LockRelease(&tag, ExclusiveLock, false);
 			SRF_RETURN_DONE(funcctx);
 		}
 
@@ -463,12 +449,12 @@ pg_self_query(PG_FUNCTION_ARGS)
 					else
 						elog(INFO, "backend is not running query");
 
-					//LockRelease(&tag, ExclusiveLock, false);
+					LockRelease(&tag, ExclusiveLock, false);
 					SRF_RETURN_DONE(funcctx);
 				}
 			case STAT_DISABLED:
 				elog(INFO, "query execution statistics disabled");
-				//LockRelease(&tag, ExclusiveLock, false);
+				LockRelease(&tag, ExclusiveLock, false);
 				SRF_RETURN_DONE(funcctx);
 			case QS_RETURNED:
 				{
@@ -525,7 +511,7 @@ pg_self_query(PG_FUNCTION_ARGS)
 					//TupleDescInitEntry(tupdesc, (AttrNumber) 5, "leader_pid", INT4OID, -1, 0);
 					funcctx->tuple_desc = BlessTupleDesc(tupdesc);
 
-					//LockRelease(&tag, ExclusiveLock, false);
+					LockRelease(&tag, ExclusiveLock, false);
 					MemoryContextSwitchTo(oldcontext);
 				}
 				break;
@@ -550,11 +536,11 @@ pg_self_query(PG_FUNCTION_ARGS)
 		values[0] = Int32GetDatum(p_state->proc->pid);
 		values[1] = Int32GetDatum(p_state->frame_index);
 		values[2] = PointerGetDatum(frame->query);
-		values[3] = PointerGetDatum(frame->plan);
-		if (p_state->proc->pid == pid)
-			nulls[4] = true;
-		else
-			values[4] = Int32GetDatum(pid);
+		//values[3] = PointerGetDatum(frame->plan);
+		//if (p_state->proc->pid == pid)
+		//	nulls[4] = true;
+		//else
+		//	values[4] = Int32GetDatum(pid);
 		tuple = heap_form_tuple(funcctx->tuple_desc, values, nulls);
 
 		/* increment cursor */
@@ -803,13 +789,7 @@ copy_msg(shm_mq_msg *msg)
 
 static List *
 GetRemoteBackendQueryStates(PGPROC *leader,
-							List *pworkers,
-						    bool verbose,
-						    bool costs,
-						    bool timing,
-						    bool buffers,
-						    bool triggers,
-						    ExplainFormat format)
+							List *pworkers)
 {
 	List			*result = NIL;
 	List			*alive_procs = NIL;

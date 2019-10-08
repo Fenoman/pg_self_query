@@ -5,7 +5,7 @@ OBJS = pg_self_query.o signal_handler.o $(WIN32RES)
 EXTENSION = pg_self_query
 EXTVERSION = 1.0
 DATA_built = $(EXTENSION)--$(EXTVERSION).sql
-PGFILEDESC = "pg_self_query - facility to track progress of plan execution"
+PGFILEDESC = "pg_self_query - facility to get current query for logging"
 
 EXTRA_CLEAN = ./isolation_output $(EXTENSION)--$(EXTVERSION).sql \
 	Dockerfile ./tests/*.pyc
