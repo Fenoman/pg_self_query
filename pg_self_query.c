@@ -812,7 +812,7 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 	sig_result = SendProcSignal(leader->pid,
 								QueryStatePollReason,
 								leader->backendId);
-	elog(INFO, "GetRemoteBackendQueryStates 4");
+	//elog(INFO, "GetRemoteBackendQueryStates 4");
 	if (sig_result == -1)
 		goto signal_error;
 	//foreach(iter, pworkers)
@@ -832,7 +832,7 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 //
 //		alive_procs = lappend(alive_procs, proc);
 //	}
-	elog(INFO, "GetRemoteBackendQueryStates 5");
+	//elog(INFO, "GetRemoteBackendQueryStates 5");
 
 	/* extract query state from leader process */
 	shm_mq_set_sender(mq, leader);
@@ -875,7 +875,7 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 //		result = lappend(result, copy_msg(msg));
 //		shm_mq_detach(mqh);
 //	}
-	elog(INFO, "GetRemoteBackendQueryStates 11");
+	//elog(INFO, "GetRemoteBackendQueryStates 11");
 	return result;
 
 signal_error:
