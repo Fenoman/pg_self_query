@@ -397,7 +397,7 @@ pg_self_query(PG_FUNCTION_ARGS)
 		shm_mq_msg		*msg;
 		List			*bg_worker_procs = NIL;
 		List			*msgs;
-		elog(INFO, "SRF_IS_FIRSTCALL 1");
+	
 		if (!module_initialized)
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 							errmsg("pg_self_query wasn't initialized yet")));
@@ -410,10 +410,9 @@ pg_self_query(PG_FUNCTION_ARGS)
 		 * init and acquire lock so that any other concurrent calls of this fuction
 		 * can not occupy shared queue for transfering query state
 		 */
-		elog(INFO, "SRF_IS_FIRSTCALL 2");
+	
 		init_lock_tag(&tag, PG_SELF_QUERY_KEY);
 		LockAcquire(&tag, ExclusiveLock, false, false);
-		elog(INFO, "SRF_IS_FIRSTCALL 3");
 
 		//counterpart_user_id = GetRemoteBackendUserId(proc);
 		//if (!(superuser() || GetUserId() == counterpart_user_id))
@@ -590,18 +589,14 @@ GetRemoteBackendUserId(PGPROC *proc)
 	SendProcSignal(proc->pid, UserIdPollReason, proc->backendId);
 	for (;;)
 	{
-		elog(INFO, "GetRemoteBackendUserId 1");
 		SpinLockAcquire(&counterpart_userid->mutex);
 		result = counterpart_userid->userid;
 		SpinLockRelease(&counterpart_userid->mutex);
-		elog(INFO, "GetRemoteBackendUserId 2");
 		if (result != InvalidOid)
 			break;
-		elog(INFO, "GetRemoteBackendUserId 3");
 		WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_EXTENSION);
 		CHECK_FOR_INTERRUPTS();
 		ResetLatch(MyLatch);
-		elog(INFO, "GetRemoteBackendUserId 4");
 	}
 
 	return result;
@@ -627,7 +622,6 @@ shm_mq_receive_with_timeout(shm_mq_handle *mqh,
 		instr_time	start_time;
 		instr_time	cur_time;
 		shm_mq_result mq_receive_result;
-		elog(INFO, "shm_mq_receive_with_timeout 1");
 
 		INSTR_TIME_SET_CURRENT(start_time);
 
@@ -647,7 +641,6 @@ shm_mq_receive_with_timeout(shm_mq_handle *mqh,
 		
 		ResetLatch(MyLatch);
 		CHECK_FOR_INTERRUPTS();
-		elog(INFO, "shm_mq_receive_with_timeout 2");
 	}
 }
 
@@ -806,13 +799,11 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 
 	Assert(QueryStatePollReason != INVALID_PROCSIGNAL);
 	Assert(mq);
-	elog(INFO, "GetRemoteBackendQueryStates 1");
+
 	pg_write_barrier();
-	elog(INFO, "GetRemoteBackendQueryStates 2");
 
 	/* initialize message queue that will transfer query states */
 	mq = shm_mq_create(mq, QUEUE_SIZE);
-	elog(INFO, "GetRemoteBackendQueryStates 3");
 
 	/*
 	 * send signal `QueryStatePollReason` to all processes and define all alive
