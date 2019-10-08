@@ -335,7 +335,7 @@ static stack_frame *
 deserialize_stack_frame(char **src)
 {
 	stack_frame *result = palloc(sizeof(stack_frame));
-	text		*query = (text *) *src//,
+	text		*query = (text *) *src;//,
 				//*plan = (text *) (*src + INTALIGN(VARSIZE(query)));
 
 	result->query = palloc(VARSIZE(query));
