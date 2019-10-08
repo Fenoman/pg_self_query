@@ -49,7 +49,7 @@ runtime_explain()
 	es->buffers = false;
 	es->timing = false;
 	es->summary = false;
-	es->format = "text";
+	//es->format = "text";
 	es->runtime = true;
 
 	/* collect query state outputs of each plan entry of stack */
