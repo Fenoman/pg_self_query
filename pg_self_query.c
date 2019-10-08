@@ -806,11 +806,13 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 
 	Assert(QueryStatePollReason != INVALID_PROCSIGNAL);
 	Assert(mq);
-
+	elog(INFO, "GetRemoteBackendQueryStates 1");
 	pg_write_barrier();
+	elog(INFO, "GetRemoteBackendQueryStates 2");
 
 	/* initialize message queue that will transfer query states */
 	mq = shm_mq_create(mq, QUEUE_SIZE);
+	elog(INFO, "GetRemoteBackendQueryStates 3");
 
 	/*
 	 * send signal `QueryStatePollReason` to all processes and define all alive
@@ -819,6 +821,7 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 	sig_result = SendProcSignal(leader->pid,
 								QueryStatePollReason,
 								leader->backendId);
+	elog(INFO, "GetRemoteBackendQueryStates 4");
 	if (sig_result == -1)
 		goto signal_error;
 	foreach(iter, pworkers)
@@ -838,17 +841,23 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 
 		alive_procs = lappend(alive_procs, proc);
 	}
+	elog(INFO, "GetRemoteBackendQueryStates 5");
 
 	/* extract query state from leader process */
 	shm_mq_set_sender(mq, leader);
+	elog(INFO, "GetRemoteBackendQueryStates 6");
 	shm_mq_set_receiver(mq, MyProc);
+	elog(INFO, "GetRemoteBackendQueryStates 7");
 	mqh = shm_mq_attach(mq, NULL, NULL);
+	elog(INFO, "GetRemoteBackendQueryStates 8");
 	mq_receive_result = shm_mq_receive(mqh, &len, (void **) &msg, false);
+	elog(INFO, "GetRemoteBackendQueryStates 9");
 	if (mq_receive_result != SHM_MQ_SUCCESS)
 		goto mq_error;
 	Assert(len == msg->length);
 	result = lappend(result, copy_msg(msg));
 	shm_mq_detach(mqh);
+	elog(INFO, "GetRemoteBackendQueryStates 10");
 
 	/*
 	 * collect results from all alived parallel workers
@@ -880,7 +889,7 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 		result = lappend(result, copy_msg(msg));
 		shm_mq_detach(mqh);
 	}
-
+	elog(INFO, "GetRemoteBackendQueryStates 11");
 	return result;
 
 signal_error:
