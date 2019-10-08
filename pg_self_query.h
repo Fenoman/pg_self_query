@@ -1,14 +1,14 @@
 /*
- * pg_query_state.h
- *		Headers for pg_query_state extension.
+ * pg_self_query.h
+ *		Headers for pg_self_query extension.
  *
- * Copyright (c) 2016-2016, Postgres Professional
+ * Copyright (c) 2016-2016, Postgres Professional (pg_query_state)
  *
  * IDENTIFICATION
- *	  contrib/pg_query_state/pg_query_state.h
+ *	  contrib/pg_self_query/pg_self_query.h
  */
-#ifndef __PG_QUERY_STATE_H__
-#define __PG_QUERY_STATE_H__
+#ifndef __PG_SELF_QUERY_H__
+#define __PG_SELF_QUERY_H__
 
 #include <postgres.h>
 
@@ -47,23 +47,8 @@ typedef struct
 
 #define BASE_SIZEOF_SHM_MQ_MSG (offsetof(shm_mq_msg, stack_depth))
 
-/* pg_query_state arguments */
-typedef struct
-{
-	bool 	verbose;
-	bool	costs;
-	bool	timing;
-	bool	buffers;
-	bool	triggers;
-	ExplainFormat format;
-} pg_qs_params;
-
-/* pg_query_state */
-extern bool 	pg_qs_enable;
-extern bool 	pg_qs_timing;
-extern bool 	pg_qs_buffers;
+/* pg_self_query */
 extern List 	*QueryDescStack;
-extern pg_qs_params *params;
 extern shm_mq 	*mq;
 
 /* signal_handler.c */

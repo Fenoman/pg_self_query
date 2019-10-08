@@ -5,10 +5,10 @@
  * Copyright (c) 2016-2016, Postgres Professional
  *
  * IDENTIFICATION
- *	  contrib/pg_query_state/signal_handler.c
+ *	  contrib/pg_self_query/signal_handler.c
  */
 
-#include "pg_query_state.h"
+#include "pg_self_query.h"
 
 #include "commands/explain.h"
 #include "miscadmin.h"
@@ -24,7 +24,7 @@
 typedef struct
 {
 	const char	*query;
-	char		*plan;
+	//char		*plan;
 } stack_frame;
 
 /*
@@ -44,12 +44,12 @@ runtime_explain()
 	/* initialize explain state with all config parameters */
 	es = NewExplainState();
 	es->analyze = false;
-	es->verbose = params->verbose;
-	es->costs = params->costs;
-	es->buffers = params->buffers && pg_qs_buffers;
-	es->timing = params->timing && pg_qs_timing;
+	es->verbose = false
+	es->costs = false;
+	es->buffers = false;
+	es->timing = false;
 	es->summary = false;
-	es->format = params->format;
+	es->format = 'text';
 	es->runtime = true;
 
 	/* collect query state outputs of each plan entry of stack */
@@ -62,25 +62,14 @@ runtime_explain()
 		qs_frame->query = currentQueryDesc->sourceText;
 
 		/* save plan with statistics */
-		initStringInfo(es->str);
-		ExplainBeginOutput(es);
-		ExplainPrintPlan(es, currentQueryDesc);
-		if (params->triggers)
-			ExplainPrintTriggers(es, currentQueryDesc);
-		ExplainEndOutput(es);
+		//initStringInfo(es->str);
+		//ExplainBeginOutput(es);
+		//ExplainPrintPlan(es, currentQueryDesc);
+		//ExplainEndOutput(es);
 
 		/* Remove last line break */
-		if (es->str->len > 0 && es->str->data[es->str->len - 1] == '\n')
-			es->str->data[--es->str->len] = '\0';
-
-		/* Fix JSON to output an object */
-		if (params->format == EXPLAIN_FORMAT_JSON)
-		{
-			es->str->data[0] = '{';
-			es->str->data[es->str->len - 1] = '}';
-		}
-
-		qs_frame->plan = es->str->data;
+		//if (es->str->len > 0 && es->str->data[es->str->len - 1] == '\n')
+			//es->str->data[--es->str->len] = '\0';
 
 		result = lcons(qs_frame, result);
 	}
@@ -94,8 +83,8 @@ runtime_explain()
 static int
 serialized_stack_frame_length(stack_frame *qs_frame)
 {
-	return 	INTALIGN(strlen(qs_frame->query) + VARHDRSZ)
-		+ 	INTALIGN(strlen(qs_frame->plan) + VARHDRSZ);
+	return 	INTALIGN(strlen(qs_frame->query) + VARHDRSZ);
+		//+ 	INTALIGN(strlen(qs_frame->plan) + VARHDRSZ);
 }
 
 /*
@@ -128,9 +117,9 @@ serialize_stack_frame(char **dest, stack_frame *qs_frame)
 	memcpy(VARDATA(*dest), qs_frame->query, strlen(qs_frame->query));
 	*dest += INTALIGN(VARSIZE(*dest));
 
-	SET_VARSIZE(*dest, strlen(qs_frame->plan) + VARHDRSZ);
-	memcpy(VARDATA(*dest), qs_frame->plan, strlen(qs_frame->plan));
-	*dest += INTALIGN(VARSIZE(*dest));
+	//SET_VARSIZE(*dest, strlen(qs_frame->plan) + VARHDRSZ);
+	//memcpy(VARDATA(*dest), qs_frame->plan, strlen(qs_frame->plan));
+	//*dest += INTALIGN(VARSIZE(*dest));
 }
 
 /*
@@ -164,24 +153,12 @@ SendQueryState(void)
 		if (shm_mq_get_sender(mq) == MyProc)
 			break;
 
-#if PG_VERSION_NUM < 100000
-		WaitLatch(MyLatch, WL_LATCH_SET, 0);
-#else
 		WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_IPC);
-#endif
 		CHECK_FOR_INTERRUPTS();
 		ResetLatch(MyLatch);
 	}
 
 	mqh = shm_mq_attach(mq, NULL, NULL);
-
-	/* check if module is enabled */
-	if (!pg_qs_enable)
-	{
-		shm_mq_msg msg = { BASE_SIZEOF_SHM_MQ_MSG, MyProc, STAT_DISABLED };
-
-		shm_mq_send(mqh, msg.length, &msg, false);
-	}
 
 	/* check if backend doesn't execute any query */
 	else if (list_length(QueryDescStack) == 0)
@@ -203,11 +180,7 @@ SendQueryState(void)
 		msg->result_code = QS_RETURNED;
 
 		msg->warnings = 0;
-		if (params->timing && !pg_qs_timing)
-			msg->warnings |= TIMINIG_OFF_WARNING;
-		if (params->buffers && !pg_qs_buffers)
-			msg->warnings |= BUFFERS_OFF_WARNING;
-
+		
 		msg->stack_depth = list_length(qs_stack);
 		serialize_stack(msg->stack, qs_stack);
 		shm_mq_send(mqh, msglen, msg, false);

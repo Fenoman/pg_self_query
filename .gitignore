@@ -5,7 +5,7 @@
 *.gcda
 *.gcno
 *.gcov
-pg_query_state--*.sql
+pg_self_query--*.sql
 cscope.out
 tags
 Dockerfile

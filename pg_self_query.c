@@ -1,14 +1,14 @@
 /*
- * pg_query_state.c
+ * pg_self_query.c
  *		Extract information about query state from other backend
  *
  * Copyright (c) 2016-2016, Postgres Professional
  *
- *	  contrib/pg_query_state/pg_query_state.c
+ *	  contrib/pg_self_query/pg_self_query.c
  * IDENTIFICATION
  */
 
-#include "pg_query_state.h"
+#include "pg_self_query.h"
 
 #include "access/htup_details.h"
 #include "catalog/pg_type.h"
@@ -33,18 +33,13 @@
 PG_MODULE_MAGIC;
 #endif
 
-#define	PG_QS_MODULE_KEY	0xCA94B108
-#define	PG_QUERY_STATE_KEY	0
+#define	PG_SQ_MODULE_KEY	0xCA94B109
+#define	PG_SELF_QUERY_KEY	0
 
 #define MIN_TIMEOUT   5000
 
 #define TEXT_CSTR_CMP(text, cstr) \
 	(memcmp(VARDATA(text), (cstr), VARSIZE(text) - VARHDRSZ))
-
-/* GUC variables */
-bool pg_qs_enable = true;
-bool pg_qs_timing = false;
-bool pg_qs_buffers = false;
 
 /* Saved hook values in case of unload */
 static ExecutorStart_hook_type prev_ExecutorStart = NULL;
@@ -57,12 +52,8 @@ void		_PG_fini(void);
 
 /* hooks defined in this module */
 static void qs_ExecutorStart(QueryDesc *queryDesc, int eflags);
-#if PG_VERSION_NUM < 100000
-static void qs_ExecutorRun(QueryDesc *queryDesc, ScanDirection direction, uint64 count);
-#else
 static void qs_ExecutorRun(QueryDesc *queryDesc, ScanDirection direction,
 						   uint64 count, bool execute_once);
-#endif
 static void qs_ExecutorFinish(QueryDesc *queryDesc);
 
 /* Global variables */
@@ -104,7 +95,6 @@ static List *GetRemoteBackendQueryStates(PGPROC *leader,
 /* Shared memory variables */
 shm_toc			*toc = NULL;
 RemoteUserIdResult *counterpart_userid = NULL;
-pg_qs_params   	*params = NULL;
 shm_mq 			*mq = NULL;
 
 /*
@@ -122,7 +112,6 @@ pg_qs_shmem_size()
 	nkeys = 3;
 
 	shm_toc_estimate_chunk(&e, sizeof(RemoteUserIdResult));
-	shm_toc_estimate_chunk(&e, sizeof(pg_qs_params));
 	shm_toc_estimate_chunk(&e, (Size) QUEUE_SIZE);
 
 	shm_toc_estimate_keys(&e, nkeys);
@@ -142,34 +131,23 @@ pg_qs_shmem_startup(void)
 	void	*shmem;
 	int		num_toc = 0;
 
-	shmem = ShmemInitStruct("pg_query_state", shmem_size, &found);
+	shmem = ShmemInitStruct("pg_self_query", shmem_size, &found);
 	if (!found)
 	{
-		toc = shm_toc_create(PG_QS_MODULE_KEY, shmem, shmem_size);
+		toc = shm_toc_create(PG_SQ_MODULE_KEY, shmem, shmem_size);
 
 		counterpart_userid = shm_toc_allocate(toc, sizeof(RemoteUserIdResult));
 		shm_toc_insert(toc, num_toc++, counterpart_userid);
 		SpinLockInit(&counterpart_userid->mutex);
-
-		params = shm_toc_allocate(toc, sizeof(pg_qs_params));
-		shm_toc_insert(toc, num_toc++, params);
 
 		mq = shm_toc_allocate(toc, QUEUE_SIZE);
 		shm_toc_insert(toc, num_toc++, mq);
 	}
 	else
 	{
-		toc = shm_toc_attach(PG_QS_MODULE_KEY, shmem);
-
-#if PG_VERSION_NUM < 100000
-		counterpart_userid = shm_toc_lookup(toc, num_toc++);
-		params = shm_toc_lookup(toc, num_toc++);
-		mq = shm_toc_lookup(toc, num_toc++);
-#else
+		toc = shm_toc_attach(PG_SQ_MODULE_KEY, shmem);
 		counterpart_userid = shm_toc_lookup(toc, num_toc++, false);
-		params = shm_toc_lookup(toc, num_toc++, false);
 		mq = shm_toc_lookup(toc, num_toc++, false);
-#endif
 	}
 
 	if (prev_shmem_startup_hook)
@@ -203,42 +181,11 @@ _PG_init(void)
 		|| UserIdPollReason == INVALID_PROCSIGNAL)
 	{
 		ereport(WARNING, (errcode(ERRCODE_INSUFFICIENT_RESOURCES),
-					errmsg("pg_query_state isn't loaded: insufficient custom ProcSignal slots")));
+					errmsg("pg_self_query isn't loaded: insufficient custom ProcSignal slots")));
 		return;
 	}
 
-	/* Define custom GUC variables */
-	DefineCustomBoolVariable("pg_query_state.enable",
-							 "Enable module.",
-							 NULL,
-							 &pg_qs_enable,
-							 true,
-							 PGC_SUSET,
-							 0,
-							 NULL,
-							 NULL,
-							 NULL);
-	DefineCustomBoolVariable("pg_query_state.enable_timing",
-							 "Collect timing data, not just row counts.",
-							 NULL,
-							 &pg_qs_timing,
-							 false,
-							 PGC_SUSET,
-							 0,
-							 NULL,
-							 NULL,
-							 NULL);
-	DefineCustomBoolVariable("pg_query_state.enable_buffers",
-							 "Collect buffer usage.",
-							 NULL,
-							 &pg_qs_buffers,
-							 false,
-							 PGC_SUSET,
-							 0,
-							 NULL,
-							 NULL,
-							 NULL);
-	EmitWarningsOnPlaceholders("pg_query_state");
+	EmitWarningsOnPlaceholders("pg_self_query");
 
 	/* Install hooks */
 	prev_ExecutorStart = ExecutorStart_hook;
@@ -279,13 +226,9 @@ static void
 qs_ExecutorStart(QueryDesc *queryDesc, int eflags)
 {
 		/* Enable per-node instrumentation */
-		if (pg_qs_enable && ((eflags & EXEC_FLAG_EXPLAIN_ONLY) == 0))
+		if ((eflags & EXEC_FLAG_EXPLAIN_ONLY) == 0)
 		{
 			queryDesc->instrument_options |= INSTRUMENT_ROWS;
-			if (pg_qs_timing)
-				queryDesc->instrument_options |= INSTRUMENT_TIMER;
-			if (pg_qs_buffers)
-				queryDesc->instrument_options |= INSTRUMENT_BUFFERS;
 		}
 
 		if (prev_ExecutorStart)
@@ -300,26 +243,16 @@ qs_ExecutorStart(QueryDesc *queryDesc, int eflags)
  * 		Catch any fatal signals
  */
 static void
-#if PG_VERSION_NUM < 100000
-qs_ExecutorRun(QueryDesc *queryDesc, ScanDirection direction, uint64 count)
-#else
 qs_ExecutorRun(QueryDesc *queryDesc, ScanDirection direction, uint64 count,
 			   bool execute_once)
-#endif
 {
 	QueryDescStack = lcons(queryDesc, QueryDescStack);
 	PG_TRY();
 	{
 		if (prev_ExecutorRun)
-#if PG_VERSION_NUM < 100000
-			prev_ExecutorRun(queryDesc, direction, count);
-		else
-			standard_ExecutorRun(queryDesc, direction, count);
-#else
 			prev_ExecutorRun(queryDesc, direction, count, execute_once);
 		else
 			standard_ExecutorRun(queryDesc, direction, count, execute_once);
-#endif
 		QueryDescStack = list_delete_first(QueryDescStack);
 	}
 	PG_CATCH();
@@ -383,7 +316,7 @@ search_be_status(int pid)
 static void
 init_lock_tag(LOCKTAG *tag, uint32 key)
 {
-	tag->locktag_field1 = PG_QS_MODULE_KEY;
+	tag->locktag_field1 = PG_SQ_MODULE_KEY;
 	tag->locktag_field2 = key;
 	tag->locktag_field3 = 0;
 	tag->locktag_field4 = 0;
@@ -397,7 +330,7 @@ init_lock_tag(LOCKTAG *tag, uint32 key)
 typedef struct
 {
 	text	*query;
-	text	*plan;
+	//text	*plan;
 } stack_frame;
 
 /*
@@ -408,15 +341,15 @@ static stack_frame *
 deserialize_stack_frame(char **src)
 {
 	stack_frame *result = palloc(sizeof(stack_frame));
-	text		*query = (text *) *src,
-				*plan = (text *) (*src + INTALIGN(VARSIZE(query)));
+	text		*query = (text *) *src//,
+				//*plan = (text *) (*src + INTALIGN(VARSIZE(query)));
 
 	result->query = palloc(VARSIZE(query));
 	memcpy(result->query, query, VARSIZE(query));
-	result->plan = palloc(VARSIZE(plan));
-	memcpy(result->plan, plan, VARSIZE(plan));
+	//result->plan = palloc(VARSIZE(plan));
+	//memcpy(result->plan, plan, VARSIZE(plan));
 
-	*src = (char *) plan + INTALIGN(VARSIZE(plan));
+	//*src = (char *) plan + INTALIGN(VARSIZE(plan));
 	return result;
 }
 
@@ -440,11 +373,11 @@ deserialize_stack(char *src, int stack_depth)
 }
 
 /*
- * Implementation of pg_query_state function
+ * Implementation of pg_self_query function
  */
-PG_FUNCTION_INFO_V1(pg_query_state);
+PG_FUNCTION_INFO_V1(pg_self_query);
 Datum
-pg_query_state(PG_FUNCTION_ARGS)
+pg_self_query(PG_FUNCTION_ARGS)
 {
 	typedef struct
 	{
@@ -464,55 +397,39 @@ pg_query_state(PG_FUNCTION_ARGS)
 	FuncCallContext	*funcctx;
 	MemoryContext	oldcontext;
 	pg_qs_fctx		*fctx;
-#define		N_ATTRS  5
+#define		N_ATTRS  3
 	pid_t			pid = PG_GETARG_INT32(0);
 
 	if (SRF_IS_FIRSTCALL())
 	{
 		LOCKTAG			 tag;
-		bool			 verbose = PG_GETARG_BOOL(1),
-						 costs = PG_GETARG_BOOL(2),
-						 timing = PG_GETARG_BOOL(3),
-						 buffers = PG_GETARG_BOOL(4),
-						 triggers = PG_GETARG_BOOL(5);
-		text			*format_text = PG_GETARG_TEXT_P(6);
 		ExplainFormat	 format;
 		PGPROC			*proc;
-		//Oid				 counterpart_user_id;
+		Oid				 counterpart_user_id;
 		shm_mq_msg		*msg;
 		List			*bg_worker_procs = NIL;
 		List			*msgs;
 
 		if (!module_initialized)
 			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-							errmsg("pg_query_state wasn't initialized yet")));
+							errmsg("pg_self_query wasn't initialized yet")));
 		proc = BackendPidGetProc(pid);
 		if (!proc || proc->backendId == InvalidBackendId)
 			ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 							errmsg("backend with pid=%d not found", pid)));
 
-		if (TEXT_CSTR_CMP(format_text, "text") == 0)
-			format = EXPLAIN_FORMAT_TEXT;
-		else if (TEXT_CSTR_CMP(format_text, "xml") == 0)
-			format = EXPLAIN_FORMAT_XML;
-		else if (TEXT_CSTR_CMP(format_text, "json") == 0)
-			format = EXPLAIN_FORMAT_JSON;
-		else if (TEXT_CSTR_CMP(format_text, "yaml") == 0)
-			format = EXPLAIN_FORMAT_YAML;
-		else
-			ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-							errmsg("unrecognized 'format' argument")));
+		format = EXPLAIN_FORMAT_TEXT;
 		/*
 		 * init and acquire lock so that any other concurrent calls of this fuction
 		 * can not occupy shared queue for transfering query state
 		 */
-		//init_lock_tag(&tag, PG_QUERY_STATE_KEY);
+		//init_lock_tag(&tag, PG_SELF_QUERY_KEY);
 		//LockAcquire(&tag, ExclusiveLock, false, false);
 
-		//counterpart_user_id = GetRemoteBackendUserId(proc);
-		//if (!(superuser() || GetUserId() == counterpart_user_id))
-		//	ereport(ERROR, (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-		//s					errmsg("permission denied")));
+		counterpart_user_id = GetRemoteBackendUserId(proc);
+		if (!(superuser() || GetUserId() == counterpart_user_id))
+			ereport(ERROR, (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+							errmsg("permission denied")));
 
 		bg_worker_procs = GetRemoteBackendWorkers(proc);
 
@@ -604,8 +521,8 @@ pg_query_state(PG_FUNCTION_ARGS)
 					TupleDescInitEntry(tupdesc, (AttrNumber) 1, "pid", INT4OID, -1, 0);
 					TupleDescInitEntry(tupdesc, (AttrNumber) 2, "frame_number", INT4OID, -1, 0);
 					TupleDescInitEntry(tupdesc, (AttrNumber) 3, "query_text", TEXTOID, -1, 0);
-					TupleDescInitEntry(tupdesc, (AttrNumber) 4, "plan", TEXTOID, -1, 0);
-					TupleDescInitEntry(tupdesc, (AttrNumber) 5, "leader_pid", INT4OID, -1, 0);
+					//TupleDescInitEntry(tupdesc, (AttrNumber) 4, "plan", TEXTOID, -1, 0);
+					//TupleDescInitEntry(tupdesc, (AttrNumber) 5, "leader_pid", INT4OID, -1, 0);
 					funcctx->tuple_desc = BlessTupleDesc(tupdesc);
 
 					//LockRelease(&tag, ExclusiveLock, false);
@@ -694,10 +611,9 @@ GetRemoteBackendUserId(PGPROC *proc)
 		if (result != InvalidOid)
 			break;
 
-		//WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_EXTENSION);
-		//ResetLatch(MyLatch);
-		// https://www.postgresql.org/message-id/E1bUIfB-0006DJ-3x@gemulon.postgresql.org
+		WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_EXTENSION);
 		CHECK_FOR_INTERRUPTS();
+		ResetLatch(MyLatch);
 	}
 
 	return result;
@@ -741,7 +657,6 @@ shm_mq_receive_with_timeout(shm_mq_handle *mqh,
 		delay = timeout - (long) INSTR_TIME_GET_MILLISEC(cur_time);
 		
 		ResetLatch(MyLatch);
-		// https://www.postgresql.org/message-id/E1bUIfB-0006DJ-3x@gemulon.postgresql.org
 		CHECK_FOR_INTERRUPTS();
 	}
 }
@@ -865,11 +780,7 @@ GetRemoteBackendWorkers(PGPROC *proc)
 		result = lcons(proc, result);
 	}
 
-#if PG_VERSION_NUM < 100000
-	shm_mq_detach(mq);
-#else
 	shm_mq_detach(mqh);
-#endif
 
 	return result;
 
@@ -912,13 +823,6 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 	Assert(QueryStatePollReason != INVALID_PROCSIGNAL);
 	Assert(mq);
 
-	/* fill in parameters of query state request */
-	params->verbose = verbose;
-	params->costs = costs;
-	params->timing = timing;
-	params->buffers = buffers;
-	params->triggers = triggers;
-	params->format = format;
 	pg_write_barrier();
 
 	/* initialize message queue that will transfer query states */
@@ -960,11 +864,7 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 		goto mq_error;
 	Assert(len == msg->length);
 	result = lappend(result, copy_msg(msg));
-#if PG_VERSION_NUM < 100000
-	shm_mq_detach(mq);
-#else
 	shm_mq_detach(mqh);
-#endif
 
 	/*
 	 * collect results from all alived parallel workers
@@ -994,12 +894,7 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 
 		/* aggregate result data */
 		result = lappend(result, copy_msg(msg));
-
-#if PG_VERSION_NUM < 100000
-		shm_mq_detach(mq);
-#else
 		shm_mq_detach(mqh);
-#endif
 	}
 
 	return result;

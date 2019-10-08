@@ -1,0 +1,5 @@
+# pg_self_query extension
+comment = 'tool to get self query text for logging'
+default_version = '1.0'
+module_pathname = '$libdir/pg_self_query'
+relocatable = true
