@@ -9,7 +9,6 @@
  */
 
 #include "pg_self_query.h"
-
 #include "access/htup_details.h"
 #include "catalog/pg_type.h"
 #include "funcapi.h"
@@ -63,7 +62,7 @@ static ProcSignalReason QueryStatePollReason = INVALID_PROCSIGNAL;
 static ProcSignalReason WorkerPollReason = INVALID_PROCSIGNAL;
 static bool 			module_initialized = false;
 static const char		*be_state_str[] = {						/* BackendState -> string repr */
-							"undefined",						/* STATE_UNDEFINED */
+							"undefined",						 /* STATE_UNDEFINED */
 							"idle",								/* STATE_IDLE */
 							"active",							/* STATE_RUNNING */
 							"idle in transaction",				/* STATE_IDLEINTRANSACTION */
@@ -335,15 +334,11 @@ static stack_frame *
 deserialize_stack_frame(char **src)
 {
 	stack_frame *result = palloc(sizeof(stack_frame));
-	text		*query = (text *) *src;//,
-				//*plan = (text *) (*src + INTALIGN(VARSIZE(query)));
+	text		*query = (text *) *src;
 
 	result->query = palloc(VARSIZE(query));
 	memcpy(result->query, query, VARSIZE(query));
-	//result->plan = palloc(VARSIZE(plan));
-	//memcpy(result->plan, plan, VARSIZE(plan));
 
-	//*src = (char *) plan + INTALIGN(VARSIZE(plan));
 	return result;
 }
 
@@ -507,8 +502,6 @@ pg_self_query(PG_FUNCTION_ARGS)
 					TupleDescInitEntry(tupdesc, (AttrNumber) 1, "pid", INT4OID, -1, 0);
 					TupleDescInitEntry(tupdesc, (AttrNumber) 2, "frame_number", INT4OID, -1, 0);
 					TupleDescInitEntry(tupdesc, (AttrNumber) 3, "query_text", TEXTOID, -1, 0);
-					//TupleDescInitEntry(tupdesc, (AttrNumber) 4, "plan", TEXTOID, -1, 0);
-					//TupleDescInitEntry(tupdesc, (AttrNumber) 5, "leader_pid", INT4OID, -1, 0);
 					funcctx->tuple_desc = BlessTupleDesc(tupdesc);
 
 					LockRelease(&tag, ExclusiveLock, false);
@@ -536,11 +529,7 @@ pg_self_query(PG_FUNCTION_ARGS)
 		values[0] = Int32GetDatum(p_state->proc->pid);
 		values[1] = Int32GetDatum(p_state->frame_index);
 		values[2] = PointerGetDatum(frame->query);
-		//values[3] = PointerGetDatum(frame->plan);
-		//if (p_state->proc->pid == pid)
-		//	nulls[4] = true;
-		//else
-		//	values[4] = Int32GetDatum(pid);
+
 		tuple = heap_form_tuple(funcctx->tuple_desc, values, nulls);
 
 		/* increment cursor */
@@ -590,6 +579,7 @@ GetRemoteBackendUserId(PGPROC *proc)
 	SendProcSignal(proc->pid, UserIdPollReason, proc->backendId);
 	for (;;)
 	{
+		elog(INFO, "GetRemoteBackendUserId 1");
 		SpinLockAcquire(&counterpart_userid->mutex);
 		result = counterpart_userid->userid;
 		SpinLockRelease(&counterpart_userid->mutex);
@@ -600,6 +590,7 @@ GetRemoteBackendUserId(PGPROC *proc)
 		WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_EXTENSION);
 		CHECK_FOR_INTERRUPTS();
 		ResetLatch(MyLatch);
+		elog(INFO, "GetRemoteBackendUserId 2");
 	}
 
 	return result;
@@ -622,6 +613,7 @@ shm_mq_receive_with_timeout(shm_mq_handle *mqh,
 
 	for (;;)
 	{
+		elog(INFO, "shm_mq_receive_with_timeout 1");
 		instr_time	start_time;
 		instr_time	cur_time;
 		shm_mq_result mq_receive_result;
@@ -644,6 +636,7 @@ shm_mq_receive_with_timeout(shm_mq_handle *mqh,
 		
 		ResetLatch(MyLatch);
 		CHECK_FOR_INTERRUPTS();
+		elog(INFO, "shm_mq_receive_with_timeout 2");
 	}
 }
 
