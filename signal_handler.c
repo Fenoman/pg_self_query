@@ -44,12 +44,12 @@ runtime_explain()
 	/* initialize explain state with all config parameters */
 	es = NewExplainState();
 	es->analyze = false;
-	es->verbose = false
+	es->verbose = false;
 	es->costs = false;
 	es->buffers = false;
 	es->timing = false;
 	es->summary = false;
-	es->format = 'text';
+	es->format = "text";
 	es->runtime = true;
 
 	/* collect query state outputs of each plan entry of stack */
@@ -161,7 +161,7 @@ SendQueryState(void)
 	mqh = shm_mq_attach(mq, NULL, NULL);
 
 	/* check if backend doesn't execute any query */
-	else if (list_length(QueryDescStack) == 0)
+	if (list_length(QueryDescStack) == 0)
 	{
 		shm_mq_msg msg = { BASE_SIZEOF_SHM_MQ_MSG, MyProc, QUERY_NOT_RUNNING };
 
