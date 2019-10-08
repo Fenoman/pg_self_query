@@ -32,7 +32,7 @@ typedef struct
  static List *		
  runtime_explain()		
  {		
- 	ExplainState    *es;		
+ 	//ExplainState    *es;		
  	ListCell	    *i;		
  	List			*result = NIL;		
 

@@ -583,14 +583,14 @@ GetRemoteBackendUserId(PGPROC *proc)
 		SpinLockAcquire(&counterpart_userid->mutex);
 		result = counterpart_userid->userid;
 		SpinLockRelease(&counterpart_userid->mutex);
-
+		elog(INFO, "GetRemoteBackendUserId 2");
 		if (result != InvalidOid)
 			break;
 
 		WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_EXTENSION);
 		CHECK_FOR_INTERRUPTS();
 		ResetLatch(MyLatch);
-		elog(INFO, "GetRemoteBackendUserId 2");
+		elog(INFO, "GetRemoteBackendUserId 3");
 	}
 
 	return result;
