@@ -393,7 +393,7 @@ pg_self_query(PG_FUNCTION_ARGS)
 	{
 		LOCKTAG			 tag;
 		PGPROC			*proc;
-		Oid				 counterpart_user_id;
+		//Oid				 counterpart_user_id;
 		shm_mq_msg		*msg;
 		List			*bg_worker_procs = NIL;
 		List			*msgs;
@@ -413,10 +413,10 @@ pg_self_query(PG_FUNCTION_ARGS)
 		init_lock_tag(&tag, PG_SELF_QUERY_KEY);
 		LockAcquire(&tag, ExclusiveLock, false, false);
 
-		counterpart_user_id = GetRemoteBackendUserId(proc);
-		if (!(superuser() || GetUserId() == counterpart_user_id))
-			ereport(ERROR, (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-							errmsg("permission denied")));
+		//counterpart_user_id = GetRemoteBackendUserId(proc);
+		//if (!(superuser() || GetUserId() == counterpart_user_id))
+		//	ereport(ERROR, (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+		//					errmsg("permission denied")));
 
 		bg_worker_procs = GetRemoteBackendWorkers(proc);
 
@@ -586,11 +586,11 @@ GetRemoteBackendUserId(PGPROC *proc)
 		elog(INFO, "GetRemoteBackendUserId 2");
 		if (result != InvalidOid)
 			break;
-
+		elog(INFO, "GetRemoteBackendUserId 3");
 		WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_EXTENSION);
 		CHECK_FOR_INTERRUPTS();
 		ResetLatch(MyLatch);
-		elog(INFO, "GetRemoteBackendUserId 3");
+		elog(INFO, "GetRemoteBackendUserId 4");
 	}
 
 	return result;
@@ -613,10 +613,10 @@ shm_mq_receive_with_timeout(shm_mq_handle *mqh,
 
 	for (;;)
 	{
-		elog(INFO, "shm_mq_receive_with_timeout 1");
 		instr_time	start_time;
 		instr_time	cur_time;
 		shm_mq_result mq_receive_result;
+		elog(INFO, "shm_mq_receive_with_timeout 1");
 
 		INSTR_TIME_SET_CURRENT(start_time);
 
