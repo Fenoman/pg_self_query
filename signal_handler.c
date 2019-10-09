@@ -109,7 +109,7 @@ serialize_stack(char *dest, List *qs_stack)
  * Send state of current query to shared queue.
  * This function is called when fire custom signal QueryStatePollReason
  */
-static shm_mq_msg *
+shm_mq_msg *
 GetQueryState()
 {
 	//shm_mq_handle 	*mqh;
