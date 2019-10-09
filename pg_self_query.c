@@ -785,7 +785,7 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 	 * send signal `QueryStatePollReason` to all processes and define all alive
 	 * 		ones
 	 */
-	msg = GetQueryState(void);
+	msg = GetQueryState();
 	//sig_result = SendProcSignal(leader->pid,
 	//							QueryStatePollReason,
 	//							leader->backendId);
