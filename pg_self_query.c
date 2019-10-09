@@ -530,13 +530,16 @@ pg_self_query(PG_FUNCTION_ARGS)
 		stack_frame	*frame = (stack_frame *) lfirst(p_state->frame_cursor);
 
 		/* Make and return next tuple to caller */
-		MemSet(values, 0, sizeof(values));
-		MemSet(nulls, 0, sizeof(nulls));
-		values[0] = Int32GetDatum(p_state->proc->pid);
-		values[1] = Int32GetDatum(p_state->frame_index);
-		values[2] = PointerGetDatum(frame->query);
+		if (funcctx->call_cntr = funcctx->max_calls - 1)
+		{
+			MemSet(values, 0, sizeof(values));
+			MemSet(nulls, 0, sizeof(nulls));
+			values[0] = Int32GetDatum(p_state->proc->pid);
+			values[1] = Int32GetDatum(p_state->frame_index);
+			values[2] = PointerGetDatum(frame->query);
 
-		tuple = heap_form_tuple(funcctx->tuple_desc, values, nulls);
+			tuple = heap_form_tuple(funcctx->tuple_desc, values, nulls);
+		}
 
 		/* increment cursor */
 		p_state->frame_cursor = lnext(p_state->frame_cursor);
