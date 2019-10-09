@@ -7,8 +7,8 @@
  * IDENTIFICATION
  *	  contrib/pg_self_query/pg_self_query.h
  */
-// #ifndef __PG_SELF_QUERY_H__
-// #define __PG_SELF_QUERY_H__
+#ifndef __PG_SELF_QUERY_H__
+#define __PG_SELF_QUERY_H__
 
 #include <postgres.h>
 
