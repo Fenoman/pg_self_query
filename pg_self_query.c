@@ -359,10 +359,10 @@ deserialize_stack(char *src, int stack_depth)
 	for (i = 0; i < stack_depth; i++)
 	{
 		stack_frame	*frame = deserialize_stack_frame(&curr_ptr);
-		//if (i == (stack_depth - 2))
-		//{
+		if (i == (stack_depth - 3))
+		{
 			result = lappend(result, frame);
-		//}
+		}
 	}
 
 	return result;
@@ -596,8 +596,8 @@ shm_mq_receive_with_timeout(shm_mq_handle *mqh,
 
 		delay = timeout - (long) INSTR_TIME_GET_MILLISEC(cur_time);
 		
-		ResetLatch(MyLatch);
 		CHECK_FOR_INTERRUPTS();
+		ResetLatch(MyLatch);
 	}
 }
 
