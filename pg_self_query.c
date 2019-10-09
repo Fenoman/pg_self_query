@@ -57,7 +57,6 @@ static void qs_ExecutorFinish(QueryDesc *queryDesc);
 
 /* Global variables */
 List 					*QueryDescStack = NIL;
-static ProcSignalReason UserIdPollReason = INVALID_PROCSIGNAL;
 static ProcSignalReason QueryStatePollReason = INVALID_PROCSIGNAL;
 static ProcSignalReason WorkerPollReason = INVALID_PROCSIGNAL;
 static bool 			module_initialized = false;
@@ -78,9 +77,7 @@ typedef struct
 	Latch	*caller;
 } RemoteUserIdResult;
 
-static void SendCurrentUserId(void);
 static void SendBgWorkerPids(void);
-static Oid GetRemoteBackendUserId(PGPROC *proc);
 static List *GetRemoteBackendWorkers(PGPROC *proc);
 static List *GetRemoteBackendQueryStates(PGPROC *leader,
 										 List *pworkers);
@@ -166,12 +163,10 @@ _PG_init(void)
 	RequestAddinShmemSpace(pg_qs_shmem_size());
 
 	/* Register interrupt on custom signal of polling query state */
-	UserIdPollReason = RegisterCustomProcSignalHandler(SendCurrentUserId);
 	QueryStatePollReason = RegisterCustomProcSignalHandler(SendQueryState);
 	WorkerPollReason = RegisterCustomProcSignalHandler(SendBgWorkerPids);
 	if (QueryStatePollReason == INVALID_PROCSIGNAL
-		|| WorkerPollReason == INVALID_PROCSIGNAL
-		|| UserIdPollReason == INVALID_PROCSIGNAL)
+		|| WorkerPollReason == INVALID_PROCSIGNAL)
 	{
 		ereport(WARNING, (errcode(ERRCODE_INSUFFICIENT_RESOURCES),
 					errmsg("pg_self_query isn't loaded: insufficient custom ProcSignal slots")));
@@ -323,7 +318,6 @@ init_lock_tag(LOCKTAG *tag, uint32 key)
 typedef struct
 {
 	text	*query;
-	//text	*plan;
 } stack_frame;
 
 /*
@@ -413,11 +407,6 @@ pg_self_query(PG_FUNCTION_ARGS)
 	
 		init_lock_tag(&tag, PG_SELF_QUERY_KEY);
 		LockAcquire(&tag, ExclusiveLock, false, false);
-
-		//counterpart_user_id = GetRemoteBackendUserId(proc);
-		//if (!(superuser() || GetUserId() == counterpart_user_id))
-		//	ereport(ERROR, (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
-		//					errmsg("permission denied")));
 
 		//bg_worker_procs = GetRemoteBackendWorkers(proc);
 		elog(INFO, "SRF_IS_FIRSTCALL 4");
@@ -553,53 +542,6 @@ pg_self_query(PG_FUNCTION_ARGS)
 		elog(INFO, "SRF_PERCALL_SETUP 2 DONE");
 		SRF_RETURN_DONE(funcctx);
 	}
-}
-
-static void
-SendCurrentUserId(void)
-{
-	SpinLockAcquire(&counterpart_userid->mutex);
-	counterpart_userid->userid = GetUserId();
-	SpinLockRelease(&counterpart_userid->mutex);
-
-	SetLatch(counterpart_userid->caller);
-}
-
-/*
- * Extract effective user id from backend on which `proc` points.
- *
- * Assume the `proc` points on valid backend and it's not current process.
- *
- * This fuction must be called after registration of `UserIdPollReason` and
- * initialization `RemoteUserIdResult` object in shared memory.
- */
-static Oid
-GetRemoteBackendUserId(PGPROC *proc)
-{
-	Oid result;
-
-	Assert(proc && proc->backendId != InvalidBackendId);
-	Assert(UserIdPollReason != INVALID_PROCSIGNAL);
-	Assert(counterpart_userid);
-
-	counterpart_userid->userid = InvalidOid;
-	counterpart_userid->caller = MyLatch;
-	pg_write_barrier();
-
-	SendProcSignal(proc->pid, UserIdPollReason, proc->backendId);
-	for (;;)
-	{
-		SpinLockAcquire(&counterpart_userid->mutex);
-		result = counterpart_userid->userid;
-		SpinLockRelease(&counterpart_userid->mutex);
-		if (result != InvalidOid)
-			break;
-		WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_EXTENSION);
-		CHECK_FOR_INTERRUPTS();
-		ResetLatch(MyLatch);
-	}
-
-	return result;
 }
 
 /*
