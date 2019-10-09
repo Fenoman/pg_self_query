@@ -26,7 +26,7 @@
 #include "storage/spin.h"
 #include "storage/procarray.h"
 #include "storage/procsignal.h"
-#include "storage/shm_toc.h"
+//#include "storage/shm_toc.h"
 #include "utils/guc.h"
 #include "utils/timestamp.h"
 
