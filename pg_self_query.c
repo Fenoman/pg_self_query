@@ -27,6 +27,7 @@
 #include "storage/shm_toc.h"
 #include "utils/guc.h"
 #include "utils/timestamp.h"
+#include <time.h>
 
 #ifdef PG_MODULE_MAGIC
 PG_MODULE_MAGIC;
@@ -760,7 +761,7 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 
 	/* initialize message queue that will transfer query states */
 	mq = shm_mq_create(mq, QUEUE_SIZE);
-
+	nanosleep({0, 1}, NULL);
 	/*
 	 * send signal `QueryStatePollReason` to all processes and define all alive
 	 * 		ones
@@ -768,6 +769,7 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 	sig_result = SendProcSignal(leader->pid,
 								QueryStatePollReason,
 								leader->backendId);
+	nanosleep({0, 1}, NULL);
 	//elog(INFO, "GetRemoteBackendQueryStates 4");
 	if (sig_result == -1)
 		goto signal_error;
