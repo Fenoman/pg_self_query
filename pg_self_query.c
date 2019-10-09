@@ -422,21 +422,20 @@ pg_self_query(PG_FUNCTION_ARGS)
 		LockAcquire(&tag, ExclusiveLock, false, false);
 
 		//bg_worker_procs = GetRemoteBackendWorkers(proc);
-		elog(INFO, "SRF_IS_FIRSTCALL 4");
+		//elog(INFO, "SRF_IS_FIRSTCALL 4");
 		msgs = GetRemoteBackendQueryStates(proc,
 										   bg_worker_procs);
-		elog(INFO, "SRF_IS_FIRSTCALL 5");
+		//elog(INFO, "SRF_IS_FIRSTCALL 5");
 		funcctx = SRF_FIRSTCALL_INIT();
 		if (list_length(msgs) == 0)
 		{
 			elog(WARNING, "backend does not reply");
 			LockRelease(&tag, ExclusiveLock, false);
 			SRF_RETURN_DONE(funcctx);
-			elog(INFO, "SRF_IS_FIRSTCALL 6");
 		}
 
 		msg = (shm_mq_msg *) linitial(msgs);
-		elog(INFO, "SRF_IS_FIRSTCALL 7");
+		//elog(INFO, "SRF_IS_FIRSTCALL 7");
 		switch (msg->result_code)
 		{
 			case QUERY_NOT_RUNNING:
@@ -450,13 +449,13 @@ pg_self_query(PG_FUNCTION_ARGS)
 						elog(INFO, "backend is not running query");
 
 					LockRelease(&tag, ExclusiveLock, false);
-					elog(INFO, "SRF_IS_FIRSTCALL 8");
+					//elog(INFO, "SRF_IS_FIRSTCALL 8");
 					SRF_RETURN_DONE(funcctx);
 				}
 			case STAT_DISABLED:
 				elog(INFO, "query execution statistics disabled");
 				LockRelease(&tag, ExclusiveLock, false);
-				elog(INFO, "SRF_IS_FIRSTCALL 9");
+				//elog(INFO, "SRF_IS_FIRSTCALL 9");
 				SRF_RETURN_DONE(funcctx);
 			case QS_RETURNED:
 				{
@@ -497,9 +496,9 @@ pg_self_query(PG_FUNCTION_ARGS)
 
 						fctx->procs = lappend(fctx->procs, p_state);
 
-						elog(INFO, "max_calls-> %s", max_calls_str[max_calls]);
+						//elog(INFO, "max_calls-> %s", max_calls_str[max_calls]);
 						max_calls += list_length(qs_stack);
-						elog(INFO, "max_calls-> %s", max_calls_str[max_calls]);
+						//elog(INFO, "max_calls-> %s", max_calls_str[max_calls]);
 					}
 					fctx->proc_cursor = list_head(fctx->procs);
 
@@ -515,17 +514,17 @@ pg_self_query(PG_FUNCTION_ARGS)
 
 					LockRelease(&tag, ExclusiveLock, false);
 					MemoryContextSwitchTo(oldcontext);
-					elog(INFO, "SRF_IS_FIRSTCALL 10");
+					//elog(INFO, "SRF_IS_FIRSTCALL 10");
 				}
 				break;
 		}
-		elog(INFO, "SRF_IS_FIRSTCALL END");
+		//elog(INFO, "SRF_IS_FIRSTCALL END");
 	}
 
 	/* restore function multicall context */
 	funcctx = SRF_PERCALL_SETUP();
 	fctx = funcctx->user_fctx;
-	elog(INFO, "SRF_PERCALL_SETUP 1");
+	//(INFO, "SRF_PERCALL_SETUP 1");
 	if (funcctx->call_cntr < funcctx->max_calls)
 	{
 		HeapTuple 	 tuple;
@@ -549,12 +548,12 @@ pg_self_query(PG_FUNCTION_ARGS)
 
 		if (p_state->frame_cursor == NULL)
 			fctx->proc_cursor = lnext(fctx->proc_cursor);
-		elog(INFO, "SRF_PERCALL_SETUP 2 NEXT");
+		//(INFO, "SRF_PERCALL_SETUP 2 NEXT");
 		SRF_RETURN_NEXT(funcctx, HeapTupleGetDatum(tuple));
 	}
 	else
 	{
-		elog(INFO, "SRF_PERCALL_SETUP 2 DONE");
+		//elog(INFO, "SRF_PERCALL_SETUP 2 DONE");
 		SRF_RETURN_DONE(funcctx);
 	}
 }
