@@ -14,9 +14,6 @@
 #include "nodes/pg_list.h"
 #include "storage/shm_mq.h"
 
-#include "commands/explain.h"
-#include "miscadmin.h"
-#include "pgstat.h"
 #include "utils/builtins.h"
 #include "utils/memutils.h"
 
@@ -114,14 +111,6 @@ typedef struct
 	int		stack_depth;
 	char	stack[FLEXIBLE_ARRAY_MEMBER];	/* sequencially laid out stack frames in form of text records */
 } shm_mq_msg;
-
-/*
- * Structure of stack frame of fucntion call which resulted from analyze of query state
- */
-typedef struct
-{
-	const char	*query;
-} stack_frame;
 
 //static void SendBgWorkerPids(void);
 //static List *GetRemoteBackendWorkers(PGPROC *proc);
