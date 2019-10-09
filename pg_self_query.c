@@ -27,8 +27,8 @@
 #include "storage/procarray.h"
 #include "storage/procsignal.h"
 //#include "storage/shm_toc.h"
-//#include "utils/guc.h"
-#include "utils/timestamp.h"
+#include "utils/guc.h"
+//#include "utils/timestamp.h"
 
 #ifdef PG_MODULE_MAGIC
 PG_MODULE_MAGIC;
