@@ -342,6 +342,7 @@ deserialize_stack_frame(char **src)
 	result->query = palloc(VARSIZE(query));
 	memcpy(result->query, query, VARSIZE(query));
 
+	*src = (char *) query + INTALIGN(VARSIZE(query));
 	return result;
 }
 
