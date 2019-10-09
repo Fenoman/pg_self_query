@@ -795,109 +795,6 @@ copy_msg(shm_mq_msg *msg)
 //    return 0; /* Return success */
 // }
 
-static List *
-GetRemoteBackendQueryStates(PGPROC *leader,
-							List *pworkers)
-{
-	List			*result = NIL;
-	//List			*alive_procs = NIL;
-	//ListCell		*iter;
-	//int		 		 sig_result;
-	//shm_mq_handle  	*mqh;
-	//shm_mq_result	 mq_receive_result;
-	shm_mq_msg		*msg;
-	//Size			 len;
-
-	//Assert(QueryStatePollReason != INVALID_PROCSIGNAL);
-	//Assert(mq);
-
-	//pg_write_barrier();
-
-	/* initialize message queue that will transfer query states */
-	//mq = shm_mq_create(mq, QUEUE_SIZE);
-	/*
-	 * send signal `QueryStatePollReason` to all processes and define all alive
-	 * 		ones
-	 */
-	msg = GetQueryState();
-	//sig_result = SendProcSignal(leader->pid,
-	//							QueryStatePollReason,
-	//							leader->backendId);
-	//elog(INFO, "GetRemoteBackendQueryStates 4");
-	//if (sig_result == -1)
-	//	goto signal_error;
-	//foreach(iter, pworkers)
-	//{
-	//	PGPROC 	*proc = (PGPROC *) lfirst(iter);
-	//	if (!proc || !proc->pid)
-	//		continue;
-	//	sig_result = SendProcSignal(proc->pid,
-	//								QueryStatePollReason,
-	//								proc->backendId);
-	//	if (sig_result == -1)
-	//	{
-	//		if (errno != ESRCH)
-	//			goto signal_error;
-	//		continue;
-	//	}
-	//
-	//		alive_procs = lappend(alive_procs, proc);
-	//	}
-	//elog(INFO, "GetRemoteBackendQueryStates 5");
-
-	/* extract query state from leader process */
-	//shm_mq_set_sender(mq, leader);
-	//shm_mq_set_receiver(mq, MyProc);
-	//mqh = shm_mq_attach(mq, NULL, NULL);
-	//mq_receive_result = shm_mq_receive(mqh, &len, (void **) &msg, false);
-	//if (mq_receive_result != SHM_MQ_SUCCESS)
-	//	goto mq_error;
-	//Assert(len == msg->length);
-	result = lappend(result, copy_msg(msg));
-	//shm_mq_detach(mqh);
-
-	/*
-	 * collect results from all alived parallel workers
-	 */
-	//foreach(iter, alive_procs)
-	//{
-	//	PGPROC 			*proc = (PGPROC *) lfirst(iter);
-//
-//		/* prepare message queue to transfer data */
-//		mq = shm_mq_create(mq, QUEUE_SIZE);
-//		shm_mq_set_sender(mq, proc);
-//		shm_mq_set_receiver(mq, MyProc);	/* this function notifies the
-//											   counterpart to come into data
-//											   transfer */
-//
-//		/* retrieve result data from message queue */
-//		mqh = shm_mq_attach(mq, NULL, NULL);
-//		mq_receive_result = shm_mq_receive_with_timeout(mqh,
-//														&len,
-//														(void **) &msg,
-//														MIN_TIMEOUT);
-//		if (mq_receive_result != SHM_MQ_SUCCESS)
-//			/* counterpart is died, not consider it */
-//			continue;
-//
-//		Assert(len == msg->length);
-//
-//		/* aggregate result data */
-//		result = lappend(result, copy_msg(msg));
-//		shm_mq_detach(mqh);
-//	}
-	//elog(INFO, "GetRemoteBackendQueryStates 11");
-	return result;
-
-// signal_error:
-// 	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-// 				errmsg("invalid send signal")));
-// mq_error:
-// 	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-// 				errmsg("error in message queue data transmitting")));
-}
-
-
 /*		
   *	Get List of stack_frames as a stack of function calls starting from outermost call.		
   *		Each entry contains only query text.		
@@ -1023,4 +920,106 @@ GetQueryState()
 		return msg;
 		//shm_mq_send(mqh, msglen, msg, false);
 	//}
+}
+
+static List *
+GetRemoteBackendQueryStates(PGPROC *leader,
+							List *pworkers)
+{
+	List			*result = NIL;
+	//List			*alive_procs = NIL;
+	//ListCell		*iter;
+	//int		 		 sig_result;
+	//shm_mq_handle  	*mqh;
+	//shm_mq_result	 mq_receive_result;
+	shm_mq_msg		*msg;
+	//Size			 len;
+
+	//Assert(QueryStatePollReason != INVALID_PROCSIGNAL);
+	//Assert(mq);
+
+	//pg_write_barrier();
+
+	/* initialize message queue that will transfer query states */
+	//mq = shm_mq_create(mq, QUEUE_SIZE);
+	/*
+	 * send signal `QueryStatePollReason` to all processes and define all alive
+	 * 		ones
+	 */
+	msg = GetQueryState();
+	//sig_result = SendProcSignal(leader->pid,
+	//							QueryStatePollReason,
+	//							leader->backendId);
+	//elog(INFO, "GetRemoteBackendQueryStates 4");
+	//if (sig_result == -1)
+	//	goto signal_error;
+	//foreach(iter, pworkers)
+	//{
+	//	PGPROC 	*proc = (PGPROC *) lfirst(iter);
+	//	if (!proc || !proc->pid)
+	//		continue;
+	//	sig_result = SendProcSignal(proc->pid,
+	//								QueryStatePollReason,
+	//								proc->backendId);
+	//	if (sig_result == -1)
+	//	{
+	//		if (errno != ESRCH)
+	//			goto signal_error;
+	//		continue;
+	//	}
+	//
+	//		alive_procs = lappend(alive_procs, proc);
+	//	}
+	//elog(INFO, "GetRemoteBackendQueryStates 5");
+
+	/* extract query state from leader process */
+	//shm_mq_set_sender(mq, leader);
+	//shm_mq_set_receiver(mq, MyProc);
+	//mqh = shm_mq_attach(mq, NULL, NULL);
+	//mq_receive_result = shm_mq_receive(mqh, &len, (void **) &msg, false);
+	//if (mq_receive_result != SHM_MQ_SUCCESS)
+	//	goto mq_error;
+	//Assert(len == msg->length);
+	result = lappend(result, copy_msg(msg));
+	//shm_mq_detach(mqh);
+
+	/*
+	 * collect results from all alived parallel workers
+	 */
+	//foreach(iter, alive_procs)
+	//{
+	//	PGPROC 			*proc = (PGPROC *) lfirst(iter);
+//
+//		/* prepare message queue to transfer data */
+//		mq = shm_mq_create(mq, QUEUE_SIZE);
+//		shm_mq_set_sender(mq, proc);
+//		shm_mq_set_receiver(mq, MyProc);	/* this function notifies the
+//											   counterpart to come into data
+//											   transfer */
+//
+//		/* retrieve result data from message queue */
+//		mqh = shm_mq_attach(mq, NULL, NULL);
+//		mq_receive_result = shm_mq_receive_with_timeout(mqh,
+//														&len,
+//														(void **) &msg,
+//														MIN_TIMEOUT);
+//		if (mq_receive_result != SHM_MQ_SUCCESS)
+//			/* counterpart is died, not consider it */
+//			continue;
+//
+//		Assert(len == msg->length);
+//
+//		/* aggregate result data */
+//		result = lappend(result, copy_msg(msg));
+//		shm_mq_detach(mqh);
+//	}
+	//elog(INFO, "GetRemoteBackendQueryStates 11");
+	return result;
+
+// signal_error:
+// 	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+// 				errmsg("invalid send signal")));
+// mq_error:
+// 	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+// 				errmsg("error in message queue data transmitting")));
 }
