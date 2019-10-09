@@ -42,9 +42,6 @@ PG_MODULE_MAGIC;
 #define TIMINIG_OFF_WARNING 1
 #define BUFFERS_OFF_WARNING 2
 
-// #define TEXT_CSTR_CMP(text, cstr) \
-// 	(memcmp(VARDATA(text), (cstr), VARSIZE(text) - VARHDRSZ))
-
 /* Saved hook values in case of unload */
 static ExecutorStart_hook_type prev_ExecutorStart = NULL;
 static ExecutorRun_hook_type prev_ExecutorRun = NULL;
