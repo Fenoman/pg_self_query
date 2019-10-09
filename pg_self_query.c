@@ -23,7 +23,7 @@
 //#include "postmaster/bgworker.h"
 //#include "storage/ipc.h"
 //#include "storage/s_lock.h"
-#include "storage/spin.h"
+//#include "storage/spin.h"
 #include "storage/procarray.h"
 #include "storage/procsignal.h"
 //#include "storage/shm_toc.h"
