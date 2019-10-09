@@ -2,7 +2,7 @@
  * pg_self_query.c
  *		Extract information about query state from current backend
  *
- * tnx to Postgres Professional for pg_query_state
+ * tnx to Postgres Professional for pg_query_state which was a greate example for me!
  *
  *	  contrib/pg_self_query/pg_self_query.c
  * IDENTIFICATION
@@ -27,7 +27,7 @@
 #include "storage/procarray.h"
 #include "storage/procsignal.h"
 //#include "storage/shm_toc.h"
-#include "utils/guc.h"
+//#include "utils/guc.h"
 #include "utils/timestamp.h"
 
 #ifdef PG_MODULE_MAGIC
