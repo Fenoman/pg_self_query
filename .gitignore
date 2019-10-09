@@ -10,3 +10,6 @@ cscope.out
 tags
 Dockerfile
 .vscode/c_cpp_properties.json
+include
+.ds_store
+settings.json

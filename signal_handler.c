@@ -26,28 +26,16 @@ typedef struct
 
 /*		
   *	Get List of stack_frames as a stack of function calls starting from outermost call.		
-  *		Each entry contains query text and query state in form of EXPLAIN ANALYZE output.		
+  *		Each entry contains only query text.		
   *	Assume extension is enabled and QueryDescStack is not empty		
   */		
  static List *		
  runtime_explain()		
  {		
- 	//ExplainState    *es;		
  	ListCell	    *i;		
  	List			*result = NIL;		
 
   	Assert(list_length(QueryDescStack) > 0);		
-
-  	/* initialize explain state with all config parameters */		
- 	//es = NewExplainState();		
- 	//es->analyze = false;		
- 	//es->verbose = false;		
- 	//es->costs = false;		
- 	//es->buffers = false;		
- 	//es->timing = false;		
- 	//es->summary = false;		
- 	//es->format = "text";		
- 	//es->runtime = true;		
 
   	/* collect query state outputs of each plan entry of stack */		
  	foreach(i, QueryDescStack)		
@@ -57,16 +45,6 @@ typedef struct
 
   		/* save query text */		
  		qs_frame->query = currentQueryDesc->sourceText;		
-
-  		/* save plan with statistics */		
- 		//initStringInfo(es->str);		
- 		//ExplainBeginOutput(es);		
- 		//ExplainPrintPlan(es, currentQueryDesc);		
- 		//ExplainEndOutput(es);		
-
-  		/* Remove last line break */		
- 		//if (es->str->len > 0 && es->str->data[es->str->len - 1] == '\n')		
- 			//es->str->data[--es->str->len] = '\0';		
 
   		result = lcons(qs_frame, result);		
  	}		
@@ -131,32 +109,32 @@ serialize_stack(char *dest, List *qs_stack)
  * Send state of current query to shared queue.
  * This function is called when fire custom signal QueryStatePollReason
  */
-void
-SendQueryState(void)
+static shm_mq_msg *
+GetQueryState(void)
 {
-	shm_mq_handle 	*mqh;
+	//shm_mq_handle 	*mqh;
 
 	/* wait until caller sets this process as sender to message queue */
-	for (;;)
-	{
-		if (shm_mq_get_sender(mq) == MyProc)
-			break;
-		WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_IPC);
-		CHECK_FOR_INTERRUPTS();
-		ResetLatch(MyLatch);
-	}
+	//for (;;)
+	//{
+	//	if (shm_mq_get_sender(mq) == MyProc)
+	//		break;
+	//	WaitLatch(MyLatch, WL_LATCH_SET, 0, PG_WAIT_IPC);
+	//	CHECK_FOR_INTERRUPTS();
+	//	ResetLatch(MyLatch);
+	//}
 
-	mqh = shm_mq_attach(mq, NULL, NULL);
+	//mqh = shm_mq_attach(mq, NULL, NULL);
 
 	/* check if backend doesn't execute any query */
-	if (list_length(QueryDescStack) == 0)
-	{
-		shm_mq_msg msg = { BASE_SIZEOF_SHM_MQ_MSG, MyProc, QUERY_NOT_RUNNING };
-		shm_mq_send(mqh, msg.length, &msg, false);
-	}
+	//if (list_length(QueryDescStack) == 0)
+	//{
+	//	shm_mq_msg msg = { BASE_SIZEOF_SHM_MQ_MSG, MyProc, QUERY_NOT_RUNNING };
+	//	shm_mq_send(mqh, msg.length, &msg, false);
+	//}
 	/* happy path */
-	else
-	{
+	//else
+	//{
 		List			*qs_stack = runtime_explain();
 		int				msglen = sizeof(shm_mq_msg) + serialized_stack_length(qs_stack);
 		shm_mq_msg		*msg = palloc(msglen);
@@ -167,6 +145,8 @@ SendQueryState(void)
 		msg->warnings = 0;	
 		msg->stack_depth = list_length(qs_stack);
 		serialize_stack(msg->stack, qs_stack);
-		shm_mq_send(mqh, msglen, msg, false);
-	}
+
+		return msg;
+		//shm_mq_send(mqh, msglen, msg, false);
+	//}
 }

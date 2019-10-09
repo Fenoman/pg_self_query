@@ -1,6 +1,6 @@
 /*
  * pg_self_query.c
- *		Extract information about query state from other backend
+ *		Extract information about query state from current backend
  *
  * Copyright (c) 2016-2016, Postgres Professional
  *
@@ -33,10 +33,10 @@
 PG_MODULE_MAGIC;
 #endif
 
-#define	PG_SQ_MODULE_KEY	0xCA94B109
-#define	PG_SELF_QUERY_KEY	0
+//#define	PG_SQ_MODULE_KEY	0xCA94B109
+//#define	PG_SELF_QUERY_KEY	0
 
-#define MIN_TIMEOUT   5000
+//#define MIN_TIMEOUT   5000
 
 #define TEXT_CSTR_CMP(text, cstr) \
 	(memcmp(VARDATA(text), (cstr), VARSIZE(text) - VARHDRSZ))
@@ -45,7 +45,7 @@ PG_MODULE_MAGIC;
 static ExecutorStart_hook_type prev_ExecutorStart = NULL;
 static ExecutorRun_hook_type prev_ExecutorRun = NULL;
 static ExecutorFinish_hook_type prev_ExecutorFinish = NULL;
-static shmem_startup_hook_type prev_shmem_startup_hook = NULL;
+//static shmem_startup_hook_type prev_shmem_startup_hook = NULL;
 
 void		_PG_init(void);
 void		_PG_fini(void);
@@ -58,9 +58,9 @@ static void qs_ExecutorFinish(QueryDesc *queryDesc);
 
 /* Global variables */
 List 					*QueryDescStack = NIL;
-static ProcSignalReason QueryStatePollReason = INVALID_PROCSIGNAL;
-static ProcSignalReason WorkerPollReason = INVALID_PROCSIGNAL;
-static bool 			module_initialized = false;
+//static ProcSignalReason QueryStatePollReason = INVALID_PROCSIGNAL;
+//static ProcSignalReason WorkerPollReason = INVALID_PROCSIGNAL;
+//static bool 			module_initialized = false;
 static const char		*be_state_str[] = {						/* BackendState -> string repr */
 							"undefined",						 /* STATE_UNDEFINED */
 							"idle",								/* STATE_IDLE */
@@ -70,91 +70,82 @@ static const char		*be_state_str[] = {						/* BackendState -> string repr */
 							"idle in transaction (aborted)",	/* STATE_IDLEINTRANSACTION_ABORTED */
 							"disabled",							/* STATE_DISABLED */
 						};
-static const char		*max_calls_str[] = {						/* BackendState -> string repr */
-							"0",						 /* STATE_UNDEFINED */
-							"1",								/* STATE_IDLE */
-							"2",							/* STATE_RUNNING */
-							"3",				/* STATE_IDLEINTRANSACTION */
-							"4",			/* STATE_FASTPATH */
-							"5",	/* STATE_IDLEINTRANSACTION_ABORTED */
-							"6",							/* STATE_DISABLED */
-						};
 
-typedef struct
-{
-	slock_t	 mutex;		/* protect concurrent access to `userid` */
-	Oid		 userid;
-	Latch	*caller;
-} RemoteUserIdResult;
+// typedef struct
+// {
+// 	slock_t	 mutex;		/* protect concurrent access to `userid` */
+// 	Oid		 userid;
+// 	Latch	*caller;
+// } RemoteUserIdResult;
 
-static void SendBgWorkerPids(void);
-static List *GetRemoteBackendWorkers(PGPROC *proc);
+//static void SendBgWorkerPids(void);
+//static List *GetRemoteBackendWorkers(PGPROC *proc);
 static List *GetRemoteBackendQueryStates(PGPROC *leader,
 										 List *pworkers);
 
 /* Shared memory variables */
-shm_toc			*toc = NULL;
-RemoteUserIdResult *counterpart_userid = NULL;
-shm_mq 			*mq = NULL;
+//shm_toc			*toc = NULL;
+//RemoteUserIdResult *counterpart_userid = NULL;
+//shm_mq 			*mq = NULL;
 
 /*
  * Estimate amount of shared memory needed.
  */
-static Size
-pg_qs_shmem_size()
-{
-	shm_toc_estimator	e;
-	Size				size;
-	int					nkeys;
+// static Size
+// pg_qs_shmem_size()
+// {
+// 	shm_toc_estimator	e;
+// 	Size				size;
+// 	int					nkeys;
 
-	shm_toc_initialize_estimator(&e);
+// 	shm_toc_initialize_estimator(&e);
 
-	nkeys = 3;
+// 	nkeys = 3;
 
-	shm_toc_estimate_chunk(&e, sizeof(RemoteUserIdResult));
-	shm_toc_estimate_chunk(&e, (Size) QUEUE_SIZE);
+// 	shm_toc_estimate_chunk(&e, sizeof(RemoteUserIdResult));
+// 	shm_toc_estimate_chunk(&e, (Size) QUEUE_SIZE);
 
-	shm_toc_estimate_keys(&e, nkeys);
-	size = shm_toc_estimate(&e);
+// 	shm_toc_estimate_keys(&e, nkeys);
+// 	size = shm_toc_estimate(&e);
 
-	return size;
-}
+// 	return size;
+// }
 
 /*
  * Distribute shared memory.
  */
-static void
-pg_qs_shmem_startup(void)
-{
-	bool	found;
-	Size	shmem_size = pg_qs_shmem_size();
-	void	*shmem;
-	int		num_toc = 0;
+// static void
+// pg_qs_shmem_startup(void)
+// {
+// 	bool	found;
+// 	Size	shmem_size = pg_qs_shmem_size();
+// 	void	*shmem;
+// 	int		num_toc = 0;
 
-	shmem = ShmemInitStruct("pg_self_query", shmem_size, &found);
-	if (!found)
-	{
-		toc = shm_toc_create(PG_SQ_MODULE_KEY, shmem, shmem_size);
+// 	shmem = ShmemInitStruct("pg_self_query", shmem_size, &found);
+// 	if (!found)
+// 	{
+// 		toc = shm_toc_create(PG_SQ_MODULE_KEY, shmem, shmem_size);
 
-		counterpart_userid = shm_toc_allocate(toc, sizeof(RemoteUserIdResult));
-		shm_toc_insert(toc, num_toc++, counterpart_userid);
-		SpinLockInit(&counterpart_userid->mutex);
+// 		counterpart_userid = shm_toc_allocate(toc, sizeof(RemoteUserIdResult));
+// 		shm_toc_insert(toc, num_toc++, counterpart_userid);
+// 		SpinLockInit(&counterpart_userid->mutex);
 
-		mq = shm_toc_allocate(toc, QUEUE_SIZE);
-		shm_toc_insert(toc, num_toc++, mq);
-	}
-	else
-	{
-		toc = shm_toc_attach(PG_SQ_MODULE_KEY, shmem);
-		counterpart_userid = shm_toc_lookup(toc, num_toc++, false);
-		mq = shm_toc_lookup(toc, num_toc++, false);
-	}
+// 		mq = shm_toc_allocate(toc, QUEUE_SIZE);
+// 		shm_toc_insert(toc, num_toc++, mq);
+// 	}
+// 	else
+// 	{
+// 		toc = shm_toc_attach(PG_SQ_MODULE_KEY, shmem);
+// 		counterpart_userid = shm_toc_lookup(toc, num_toc++, false);
+// 		mq = shm_toc_lookup(toc, num_toc++, false);
+// 	}
 
-	if (prev_shmem_startup_hook)
-		prev_shmem_startup_hook();
+// 	if (prev_shmem_startup_hook)
+// 		prev_shmem_startup_hook();
 
-	module_initialized = true;
-}
+// 	module_initialized = true;
+// }
 
 /*
  * Module load callback
@@ -170,18 +161,18 @@ _PG_init(void)
 	 * the postmaster process.)  We'll allocate or attach to the shared
 	 * resources in qs_shmem_startup().
 	 */
-	RequestAddinShmemSpace(pg_qs_shmem_size());
+	//RequestAddinShmemSpace(pg_qs_shmem_size());
 
 	/* Register interrupt on custom signal of polling query state */
-	QueryStatePollReason = RegisterCustomProcSignalHandler(SendQueryState);
-	WorkerPollReason = RegisterCustomProcSignalHandler(SendBgWorkerPids);
-	if (QueryStatePollReason == INVALID_PROCSIGNAL
-		|| WorkerPollReason == INVALID_PROCSIGNAL)
-	{
-		ereport(WARNING, (errcode(ERRCODE_INSUFFICIENT_RESOURCES),
-					errmsg("pg_self_query isn't loaded: insufficient custom ProcSignal slots")));
-		return;
-	}
+	//QueryStatePollReason = RegisterCustomProcSignalHandler(SendQueryState);
+	//WorkerPollReason = RegisterCustomProcSignalHandler(SendBgWorkerPids);
+	//if (QueryStatePollReason == INVALID_PROCSIGNAL
+	//	|| WorkerPollReason == INVALID_PROCSIGNAL)
+	//{
+	//	ereport(WARNING, (errcode(ERRCODE_INSUFFICIENT_RESOURCES),
+	//				errmsg("pg_self_query isn't loaded: insufficient custom ProcSignal slots")));
+	//	return;
+	//}
 
 	EmitWarningsOnPlaceholders("pg_self_query");
 
@@ -192,8 +183,8 @@ _PG_init(void)
 	ExecutorRun_hook = qs_ExecutorRun;
 	prev_ExecutorFinish = ExecutorFinish_hook;
 	ExecutorFinish_hook = qs_ExecutorFinish;
-	prev_shmem_startup_hook = shmem_startup_hook;
-	shmem_startup_hook = pg_qs_shmem_startup;
+	//prev_shmem_startup_hook = shmem_startup_hook;
+	//shmem_startup_hook = pg_qs_shmem_startup;
 }
 
 /*
@@ -202,17 +193,17 @@ _PG_init(void)
 void
 _PG_fini(void)
 {
-	module_initialized = false;
+	//module_initialized = false;
 
 	/* clear global state */
 	list_free(QueryDescStack);
-	AssignCustomProcSignalHandler(QueryStatePollReason, NULL);
+	//AssignCustomProcSignalHandler(QueryStatePollReason, NULL);
 
 	/* Uninstall hooks. */
 	ExecutorStart_hook = prev_ExecutorStart;
 	ExecutorRun_hook = prev_ExecutorRun;
 	ExecutorFinish_hook = prev_ExecutorFinish;
-	shmem_startup_hook = prev_shmem_startup_hook;
+	//shmem_startup_hook = prev_shmem_startup_hook;
 }
 
 /*
@@ -311,16 +302,16 @@ search_be_status(int pid)
 /*
  * Init userlock
  */
-static void
-init_lock_tag(LOCKTAG *tag, uint32 key)
-{
-	tag->locktag_field1 = PG_SQ_MODULE_KEY;
-	tag->locktag_field2 = key;
-	tag->locktag_field3 = 0;
-	tag->locktag_field4 = 0;
-	tag->locktag_type = LOCKTAG_USERLOCK;
-	tag->locktag_lockmethodid = USER_LOCKMETHOD;
-}
+// static void
+// init_lock_tag(LOCKTAG *tag, uint32 key)
+// {
+// 	tag->locktag_field1 = PG_SQ_MODULE_KEY;
+// 	tag->locktag_field2 = key;
+// 	tag->locktag_field3 = 0;
+// 	tag->locktag_field4 = 0;
+// 	tag->locktag_type = LOCKTAG_USERLOCK;
+// 	tag->locktag_lockmethodid = USER_LOCKMETHOD;
+// }
 
 /*
  * Structure of stack frame of fucntion call which transfers through message queue
@@ -360,10 +351,10 @@ deserialize_stack(char *src, int stack_depth)
 	for (i = 0; i < stack_depth; i++)
 	{
 		stack_frame	*frame = deserialize_stack_frame(&curr_ptr);
-		if (i == (stack_depth - 3))
-		{
+		//if (i == (stack_depth - 3))
+		//{
 			result = lappend(result, frame);
-		}
+		//}
 	}
 
 	return result;
@@ -394,22 +385,24 @@ pg_self_query(PG_FUNCTION_ARGS)
 	FuncCallContext	*funcctx;
 	MemoryContext	oldcontext;
 	pg_qs_fctx		*fctx;
-#define		N_ATTRS  3
+#define		N_ATTRS  2
 	pid_t			pid = MyProcPid;
 
 	if (SRF_IS_FIRSTCALL())
 	{
-		LOCKTAG			 tag;
+		//LOCKTAG			 tag;
 		PGPROC			*proc;
 		//Oid				 counterpart_user_id;
 		shm_mq_msg		*msg;
 		List			*bg_worker_procs = NIL;
 		List			*msgs;
 	
-		if (!module_initialized)
-			ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-							errmsg("pg_self_query wasn't initialized yet")));
+		// if (!module_initialized)
+		// 	ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+		// 					errmsg("pg_self_query wasn't initialized yet")));
+							
 		proc = BackendPidGetProc(pid);
+
 		if (!proc || proc->backendId == InvalidBackendId)
 			ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 							errmsg("backend with pid=%d not found", pid)));
@@ -419,24 +412,26 @@ pg_self_query(PG_FUNCTION_ARGS)
 		 * can not occupy shared queue for transfering query state
 		 */
 	
-		init_lock_tag(&tag, PG_SELF_QUERY_KEY);
-		LockAcquire(&tag, ExclusiveLock, false, false);
+		//init_lock_tag(&tag, PG_SELF_QUERY_KEY);
+		//LockAcquire(&tag, ExclusiveLock, false, false);
 
 		//bg_worker_procs = GetRemoteBackendWorkers(proc);
-		//elog(INFO, "SRF_IS_FIRSTCALL 4");
+		elog(INFO, "SRF_IS_FIRSTCALL 4");
 		msgs = GetRemoteBackendQueryStates(proc,
 										   bg_worker_procs);
-		//elog(INFO, "SRF_IS_FIRSTCALL 5");
+		elog(INFO, "SRF_IS_FIRSTCALL 5");
+		
 		funcctx = SRF_FIRSTCALL_INIT();
+		
 		if (list_length(msgs) == 0)
 		{
 			elog(WARNING, "backend does not reply");
-			LockRelease(&tag, ExclusiveLock, false);
+			//LockRelease(&tag, ExclusiveLock, false);
 			SRF_RETURN_DONE(funcctx);
 		}
 
 		msg = (shm_mq_msg *) linitial(msgs);
-		//elog(INFO, "SRF_IS_FIRSTCALL 7");
+
 		switch (msg->result_code)
 		{
 			case QUERY_NOT_RUNNING:
@@ -449,13 +444,13 @@ pg_self_query(PG_FUNCTION_ARGS)
 					else
 						elog(INFO, "backend is not running query");
 
-					LockRelease(&tag, ExclusiveLock, false);
+					//LockRelease(&tag, ExclusiveLock, false);
 					//elog(INFO, "SRF_IS_FIRSTCALL 8");
 					SRF_RETURN_DONE(funcctx);
 				}
 			case STAT_DISABLED:
 				elog(INFO, "query execution statistics disabled");
-				LockRelease(&tag, ExclusiveLock, false);
+				//LockRelease(&tag, ExclusiveLock, false);
 				//elog(INFO, "SRF_IS_FIRSTCALL 9");
 				SRF_RETURN_DONE(funcctx);
 			case QS_RETURNED:
@@ -508,12 +503,11 @@ pg_self_query(PG_FUNCTION_ARGS)
 
 					/* Make tuple descriptor */
 					tupdesc = CreateTemplateTupleDesc(N_ATTRS, false);
-					TupleDescInitEntry(tupdesc, (AttrNumber) 1, "pid", INT4OID, -1, 0);
-					TupleDescInitEntry(tupdesc, (AttrNumber) 2, "frame_number", INT4OID, -1, 0);
-					TupleDescInitEntry(tupdesc, (AttrNumber) 3, "query_text", TEXTOID, -1, 0);
+					TupleDescInitEntry(tupdesc, (AttrNumber) 1, "frame_number", INT4OID, -1, 0);
+					TupleDescInitEntry(tupdesc, (AttrNumber) 2, "query_text", TEXTOID, -1, 0);
 					funcctx->tuple_desc = BlessTupleDesc(tupdesc);
 
-					LockRelease(&tag, ExclusiveLock, false);
+					//LockRelease(&tag, ExclusiveLock, false);
 					MemoryContextSwitchTo(oldcontext);
 					//elog(INFO, "SRF_IS_FIRSTCALL 10");
 				}
@@ -537,9 +531,8 @@ pg_self_query(PG_FUNCTION_ARGS)
 		/* Make and return next tuple to caller */
 		MemSet(values, 0, sizeof(values));
 		MemSet(nulls, 0, sizeof(nulls));
-		values[0] = Int32GetDatum(p_state->proc->pid);
-		values[1] = Int32GetDatum(p_state->frame_index);
-		values[2] = PointerGetDatum(frame->query);
+		values[0] = Int32GetDatum(p_state->frame_index);
+		values[1] = PointerGetDatum(frame->query);
 
 		tuple = heap_form_tuple(funcctx->tuple_desc, values, nulls);
 
@@ -565,172 +558,172 @@ pg_self_query(PG_FUNCTION_ARGS)
  * Parameter `*nbytes` is set to the message length and *data to point to the
  * message payload. If timeout is exceeded SHM_MQ_WOULD_BLOCK is returned.
  */
-static shm_mq_result
-shm_mq_receive_with_timeout(shm_mq_handle *mqh,
-							Size *nbytesp,
-							void **datap,
-							long timeout)
-{
-	int 		rc = 0;
-	long 		delay = timeout;
+// static shm_mq_result
+// shm_mq_receive_with_timeout(shm_mq_handle *mqh,
+// 							Size *nbytesp,
+// 							void **datap,
+// 							long timeout)
+// {
+// 	int 		rc = 0;
+// 	long 		delay = timeout;
 
-	for (;;)
-	{
-		instr_time	start_time;
-		instr_time	cur_time;
-		shm_mq_result mq_receive_result;
+// 	for (;;)
+// 	{
+// 		instr_time	start_time;
+// 		instr_time	cur_time;
+// 		shm_mq_result mq_receive_result;
 
-		INSTR_TIME_SET_CURRENT(start_time);
+// 		INSTR_TIME_SET_CURRENT(start_time);
 
-		mq_receive_result = shm_mq_receive(mqh, nbytesp, datap, true);
-		if (mq_receive_result != SHM_MQ_WOULD_BLOCK)
-			return mq_receive_result;
-		if (rc & WL_TIMEOUT || delay <= 0)
-			return SHM_MQ_WOULD_BLOCK;
+// 		mq_receive_result = shm_mq_receive(mqh, nbytesp, datap, true);
+// 		if (mq_receive_result != SHM_MQ_WOULD_BLOCK)
+// 			return mq_receive_result;
+// 		if (rc & WL_TIMEOUT || delay <= 0)
+// 			return SHM_MQ_WOULD_BLOCK;
 
-		rc = WaitLatch(MyLatch, WL_LATCH_SET | WL_TIMEOUT, delay,
-					   PG_WAIT_EXTENSION);
+// 		rc = WaitLatch(MyLatch, WL_LATCH_SET | WL_TIMEOUT, delay,
+// 					   PG_WAIT_EXTENSION);
 
-		INSTR_TIME_SET_CURRENT(cur_time);
-		INSTR_TIME_SUBTRACT(cur_time, start_time);
+// 		INSTR_TIME_SET_CURRENT(cur_time);
+// 		INSTR_TIME_SUBTRACT(cur_time, start_time);
 
-		delay = timeout - (long) INSTR_TIME_GET_MILLISEC(cur_time);
+// 		delay = timeout - (long) INSTR_TIME_GET_MILLISEC(cur_time);
 		
-		CHECK_FOR_INTERRUPTS();
-		ResetLatch(MyLatch);
-	}
-}
+// 		CHECK_FOR_INTERRUPTS();
+// 		ResetLatch(MyLatch);
+// 	}
+// }
 
 /*
  * Extract to *result pids of all parallel workers running from leader process
  * that executes plan tree whose state root is `node`.
  */
-static bool
-extract_running_bgworkers(PlanState *node, List **result)
-{
-	if (node == NULL)
-		return false;
+// static bool
+// extract_running_bgworkers(PlanState *node, List **result)
+// {
+// 	if (node == NULL)
+// 		return false;
 
-	if (IsA(node, GatherState))
-	{
-		GatherState *gather_node = (GatherState *) node;
-		int 		i;
+// 	if (IsA(node, GatherState))
+// 	{
+// 		GatherState *gather_node = (GatherState *) node;
+// 		int 		i;
 
-		if (gather_node->pei)
-		{
-			for (i = 0; i < gather_node->pei->pcxt->nworkers_launched; i++)
-			{
-				pid_t 					 pid;
-				BackgroundWorkerHandle 	*bgwh;
-				BgwHandleStatus 		 status;
+// 		if (gather_node->pei)
+// 		{
+// 			for (i = 0; i < gather_node->pei->pcxt->nworkers_launched; i++)
+// 			{
+// 				pid_t 					 pid;
+// 				BackgroundWorkerHandle 	*bgwh;
+// 				BgwHandleStatus 		 status;
 
-				bgwh = gather_node->pei->pcxt->worker[i].bgwhandle;
-				if (!bgwh)
-					continue;
+// 				bgwh = gather_node->pei->pcxt->worker[i].bgwhandle;
+// 				if (!bgwh)
+// 					continue;
 
-				status = GetBackgroundWorkerPid(bgwh, &pid);
-				if (status == BGWH_STARTED)
-					*result = lcons_int(pid, *result);
-			}
-		}
-	}
-	return planstate_tree_walker(node, extract_running_bgworkers, (void *) result);
-}
+// 				status = GetBackgroundWorkerPid(bgwh, &pid);
+// 				if (status == BGWH_STARTED)
+// 					*result = lcons_int(pid, *result);
+// 			}
+// 		}
+// 	}
+// 	return planstate_tree_walker(node, extract_running_bgworkers, (void *) result);
+// }
 
-typedef struct
-{
-	int		number;
-	pid_t	pids[FLEXIBLE_ARRAY_MEMBER];
-} BgWorkerPids;
+// typedef struct
+// {
+// 	int		number;
+// 	pid_t	pids[FLEXIBLE_ARRAY_MEMBER];
+// } BgWorkerPids;
 
-static void
-SendBgWorkerPids(void)
-{
-	ListCell 		*iter;
-	List 			*all_workers = NIL;
-	BgWorkerPids 	*msg;
-	int				 msg_len;
-	int				 i;
-	shm_mq_handle 	*mqh;
+// static void
+// SendBgWorkerPids(void)
+// {
+// 	ListCell 		*iter;
+// 	List 			*all_workers = NIL;
+// 	BgWorkerPids 	*msg;
+// 	int				 msg_len;
+// 	int				 i;
+// 	shm_mq_handle 	*mqh;
 
-	mqh = shm_mq_attach(mq, NULL, NULL);
+// 	mqh = shm_mq_attach(mq, NULL, NULL);
 
-	foreach(iter, QueryDescStack)
-	{
-		QueryDesc	*curQueryDesc = (QueryDesc *) lfirst(iter);
-		List 		*bgworker_pids = NIL;
+// 	foreach(iter, QueryDescStack)
+// 	{
+// 		QueryDesc	*curQueryDesc = (QueryDesc *) lfirst(iter);
+// 		List 		*bgworker_pids = NIL;
 
-		extract_running_bgworkers(curQueryDesc->planstate, &bgworker_pids);
-		all_workers = list_concat(all_workers, bgworker_pids);
-	}
+// 		extract_running_bgworkers(curQueryDesc->planstate, &bgworker_pids);
+// 		all_workers = list_concat(all_workers, bgworker_pids);
+// 	}
 
-	msg_len = offsetof(BgWorkerPids, pids)
-			+ sizeof(pid_t) * list_length(all_workers);
-	msg = palloc(msg_len);
-	msg->number = list_length(all_workers);
-	i = 0;
-	foreach(iter, all_workers)
-	{
-		pid_t current_pid = lfirst_int(iter);
+// 	msg_len = offsetof(BgWorkerPids, pids)
+// 			+ sizeof(pid_t) * list_length(all_workers);
+// 	msg = palloc(msg_len);
+// 	msg->number = list_length(all_workers);
+// 	i = 0;
+// 	foreach(iter, all_workers)
+// 	{
+// 		pid_t current_pid = lfirst_int(iter);
 
-		AssertState(current_pid > 0);
-		msg->pids[i++] = current_pid;
-	}
+// 		AssertState(current_pid > 0);
+// 		msg->pids[i++] = current_pid;
+// 	}
 
-	shm_mq_send(mqh, msg_len, msg, false);
-}
+// 	shm_mq_send(mqh, msg_len, msg, false);
+// }
 
 /*
  * Extracts all parallel worker `proc`s running by process `proc`
  */
-static List *
-GetRemoteBackendWorkers(PGPROC *proc)
-{
-	int				 sig_result;
-	shm_mq_handle	*mqh;
-	shm_mq_result 	 mq_receive_result;
-	BgWorkerPids	*msg;
-	Size			 msg_len;
-	int				 i;
-	List			*result = NIL;
+// static List *
+// GetRemoteBackendWorkers(PGPROC *proc)
+// {
+// 	int				 sig_result;
+// 	shm_mq_handle	*mqh;
+// 	shm_mq_result 	 mq_receive_result;
+// 	BgWorkerPids	*msg;
+// 	Size			 msg_len;
+// 	int				 i;
+// 	List			*result = NIL;
 
-	Assert(proc && proc->backendId != InvalidBackendId);
-	Assert(WorkerPollReason != INVALID_PROCSIGNAL);
-	Assert(mq);
+// 	Assert(proc && proc->backendId != InvalidBackendId);
+// 	Assert(WorkerPollReason != INVALID_PROCSIGNAL);
+// 	Assert(mq);
 
-	mq = shm_mq_create(mq, QUEUE_SIZE);
-	shm_mq_set_sender(mq, proc);
-	shm_mq_set_receiver(mq, MyProc);
+// 	mq = shm_mq_create(mq, QUEUE_SIZE);
+// 	shm_mq_set_sender(mq, proc);
+// 	shm_mq_set_receiver(mq, MyProc);
 
-	sig_result = SendProcSignal(proc->pid, WorkerPollReason, proc->backendId);
-	if (sig_result == -1)
-		goto signal_error;
+// 	sig_result = SendProcSignal(proc->pid, WorkerPollReason, proc->backendId);
+// 	if (sig_result == -1)
+// 		goto signal_error;
 
-	mqh = shm_mq_attach(mq, NULL, NULL);
-	mq_receive_result = shm_mq_receive(mqh, &msg_len, (void **) &msg, false);
-	if (mq_receive_result != SHM_MQ_SUCCESS)
-		goto mq_error;
+// 	mqh = shm_mq_attach(mq, NULL, NULL);
+// 	mq_receive_result = shm_mq_receive(mqh, &msg_len, (void **) &msg, false);
+// 	if (mq_receive_result != SHM_MQ_SUCCESS)
+// 		goto mq_error;
 
-	for (i = 0; i < msg->number; i++)
-	{
-		pid_t	pid = msg->pids[i];
-		PGPROC *proc = BackendPidGetProc(pid);
-		if (!proc || !proc->pid)
-			continue;
-		result = lcons(proc, result);
-	}
+// 	for (i = 0; i < msg->number; i++)
+// 	{
+// 		pid_t	pid = msg->pids[i];
+// 		PGPROC *proc = BackendPidGetProc(pid);
+// 		if (!proc || !proc->pid)
+// 			continue;
+// 		result = lcons(proc, result);
+// 	}
 
-	shm_mq_detach(mqh);
+// 	shm_mq_detach(mqh);
 
-	return result;
+// 	return result;
 
-signal_error:
-	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-				errmsg("invalid send signal")));
-mq_error:
-	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-				errmsg("error in message queue data transmitting")));
-}
+// signal_error:
+// 	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+// 				errmsg("invalid send signal")));
+// mq_error:
+// 	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+// 				errmsg("error in message queue data transmitting")));
+// }
 
 static shm_mq_msg *
 copy_msg(shm_mq_msg *msg)
@@ -741,65 +734,64 @@ copy_msg(shm_mq_msg *msg)
 	return result;
 }
 
-static int 
-myNanoSleep(time_t sec, long nanosec)
-{
-   /* Setup timespec */
-   struct timespec req;
-   req.tv_sec = sec;
-   req.tv_nsec = nanosec;
+// static int 
+// myNanoSleep(time_t sec, long nanosec)
+// {
+//    /* Setup timespec */
+//    struct timespec req;
+//    req.tv_sec = sec;
+//    req.tv_nsec = nanosec;
 
-   /* Loop until we've slept long enough */
-   do 
-   {
-      /* Store remainder back on top of the original required time */
-      if( 0 != nanosleep( &req, &req ) )
-      {
-          /* If any error other than a signal interrupt occurs, return an error */
-          if(errno != EINTR)
-             return -1; 
-      }
-      else
-      {
-          /* nanosleep succeeded, so exit the loop */
-          break;
-      }
-   } while( req.tv_sec > 0 || req.tv_nsec > 0 );
-   return 0; /* Return success */
-}
+//    /* Loop until we've slept long enough */
+//    do 
+//    {
+//       /* Store remainder back on top of the original required time */
+//       if( 0 != nanosleep( &req, &req ) )
+//       {
+//           /* If any error other than a signal interrupt occurs, return an error */
+//           if(errno != EINTR)
+//              return -1; 
+//       }
+//       else
+//       {
+//           /* nanosleep succeeded, so exit the loop */
+//           break;
+//       }
+//    } while( req.tv_sec > 0 || req.tv_nsec > 0 );
+//    return 0; /* Return success */
+// }
 
 static List *
 GetRemoteBackendQueryStates(PGPROC *leader,
 							List *pworkers)
 {
 	List			*result = NIL;
-	List			*alive_procs = NIL;
-	ListCell		*iter;
-	int		 		 sig_result;
-	shm_mq_handle  	*mqh;
-	shm_mq_result	 mq_receive_result;
+	//List			*alive_procs = NIL;
+	//ListCell		*iter;
+	//int		 		 sig_result;
+	//shm_mq_handle  	*mqh;
+	//shm_mq_result	 mq_receive_result;
 	shm_mq_msg		*msg;
-	Size			 len;
+	//Size			 len;
 
-	Assert(QueryStatePollReason != INVALID_PROCSIGNAL);
-	Assert(mq);
+	//Assert(QueryStatePollReason != INVALID_PROCSIGNAL);
+	//Assert(mq);
 
-	pg_write_barrier();
+	//pg_write_barrier();
 
 	/* initialize message queue that will transfer query states */
-	mq = shm_mq_create(mq, QUEUE_SIZE);
-	myNanoSleep(0,1);
+	//mq = shm_mq_create(mq, QUEUE_SIZE);
 	/*
 	 * send signal `QueryStatePollReason` to all processes and define all alive
 	 * 		ones
 	 */
-	sig_result = SendProcSignal(leader->pid,
-								QueryStatePollReason,
-								leader->backendId);
-	myNanoSleep(0,1);
+	msg = GetQueryState(void);
+	//sig_result = SendProcSignal(leader->pid,
+	//							QueryStatePollReason,
+	//							leader->backendId);
 	//elog(INFO, "GetRemoteBackendQueryStates 4");
-	if (sig_result == -1)
-		goto signal_error;
+	//if (sig_result == -1)
+	//	goto signal_error;
 	//foreach(iter, pworkers)
 	//{
 	//	PGPROC 	*proc = (PGPROC *) lfirst(iter);
@@ -814,21 +806,21 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 	//			goto signal_error;
 	//		continue;
 	//	}
-//
-//		alive_procs = lappend(alive_procs, proc);
-//	}
+	//
+	//		alive_procs = lappend(alive_procs, proc);
+	//	}
 	//elog(INFO, "GetRemoteBackendQueryStates 5");
 
 	/* extract query state from leader process */
-	shm_mq_set_sender(mq, leader);
-	shm_mq_set_receiver(mq, MyProc);
-	mqh = shm_mq_attach(mq, NULL, NULL);
-	mq_receive_result = shm_mq_receive(mqh, &len, (void **) &msg, false);
-	if (mq_receive_result != SHM_MQ_SUCCESS)
-		goto mq_error;
-	Assert(len == msg->length);
+	//shm_mq_set_sender(mq, leader);
+	//shm_mq_set_receiver(mq, MyProc);
+	//mqh = shm_mq_attach(mq, NULL, NULL);
+	//mq_receive_result = shm_mq_receive(mqh, &len, (void **) &msg, false);
+	//if (mq_receive_result != SHM_MQ_SUCCESS)
+	//	goto mq_error;
+	//Assert(len == msg->length);
 	result = lappend(result, copy_msg(msg));
-	shm_mq_detach(mqh);
+	//shm_mq_detach(mqh);
 
 	/*
 	 * collect results from all alived parallel workers
@@ -863,10 +855,10 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 	//elog(INFO, "GetRemoteBackendQueryStates 11");
 	return result;
 
-signal_error:
-	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-				errmsg("invalid send signal")));
-mq_error:
-	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
-				errmsg("error in message queue data transmitting")));
+// signal_error:
+// 	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+// 				errmsg("invalid send signal")));
+// mq_error:
+// 	ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
+// 				errmsg("error in message queue data transmitting")));
 }
