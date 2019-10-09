@@ -69,6 +69,15 @@ static const char		*be_state_str[] = {						/* BackendState -> string repr */
 							"idle in transaction (aborted)",	/* STATE_IDLEINTRANSACTION_ABORTED */
 							"disabled",							/* STATE_DISABLED */
 						};
+static const char		*max_calls_str[] = {						/* BackendState -> string repr */
+							"0",						 /* STATE_UNDEFINED */
+							"1",								/* STATE_IDLE */
+							"2",							/* STATE_RUNNING */
+							"3",				/* STATE_IDLEINTRANSACTION */
+							"4",			/* STATE_FASTPATH */
+							"5",	/* STATE_IDLEINTRANSACTION_ABORTED */
+							"6",							/* STATE_DISABLED */
+						};
 
 typedef struct
 {
@@ -484,8 +493,8 @@ pg_self_query(PG_FUNCTION_ARGS)
 
 						fctx->procs = lappend(fctx->procs, p_state);
 
+						elog(INFO, "max_calls-> %s", max_calls_str[max_calls]);
 						max_calls += list_length(qs_stack);
-						elog(INFO, "max_calls-> %s", (char *) max_calls);
 					}
 					fctx->proc_cursor = list_head(fctx->procs);
 
