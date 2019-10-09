@@ -9,26 +9,13 @@
  */
 
 #include <postgres.h>
-//#include "utils/builtins.h"
-//#include "utils/memutils.h"
 #include "access/htup_details.h"
 #include "catalog/pg_type.h"
 #include "funcapi.h"
-//#include "executor/execParallel.h"
-//#include "executor/executor.h"
 #include "miscadmin.h"
-//#include "nodes/nodeFuncs.h"
-//#include "nodes/print.h"
 #include "pgstat.h"
-//#include "postmaster/bgworker.h"
-//#include "storage/ipc.h"
-//#include "storage/s_lock.h"
-//#include "storage/spin.h"
 #include "storage/procarray.h"
-//#include "storage/procsignal.h"
-//#include "storage/shm_toc.h"
 #include "utils/guc.h"
-//#include "utils/timestamp.h"
 
 #ifdef PG_MODULE_MAGIC
 PG_MODULE_MAGIC;
@@ -63,23 +50,12 @@ static const char		*be_state_str[] = {						/* BackendState -> string repr */
 						};
 
 /*
- * Result status on query state request from asked backend
- */
-typedef enum
-{
-	QUERY_NOT_RUNNING,		/* Backend doesn't execute any query */
-	STAT_DISABLED,			/* Collection of execution statistics is disabled */
-	QS_RETURNED				/* Backend succesfully returned its query state */
-} PG_QS_RequestResult;
-
-/*
  *	Format of stack information
  */
 typedef struct
 {
 	int		length;							/* size of message record, for sanity check */
 	PGPROC	*proc;
-	PG_QS_RequestResult	result_code;
 	int		warnings;						/* bitmap of warnings */
 	int		stack_depth;
 	char	stack[FLEXIBLE_ARRAY_MEMBER];	/* sequencially laid out stack frames in form of text records */
@@ -333,7 +309,6 @@ GetQueryState()
 
 	msg->length = msglen;
 	msg->proc = MyProc;
-	msg->result_code = QS_RETURNED;
 	msg->warnings = 0;	
 	msg->stack_depth = list_length(qs_stack);
 	serialize_stack(msg->stack, qs_stack);
@@ -446,76 +421,51 @@ pg_self_query(PG_FUNCTION_ARGS)
 
 		msg = (stack_msg *) linitial(msgs);
 
-		switch (msg->result_code)
+		TupleDesc	tupdesc;
+		ListCell	*i;
+		int64		max_calls = 0;
+
+		/* print warnings if exist */
+		if (msg->warnings & TIMINIG_OFF_WARNING)
+			ereport(WARNING, (errcode(ERRCODE_WARNING),
+							errmsg("timing statistics disabled")));
+		if (msg->warnings & BUFFERS_OFF_WARNING)
+			ereport(WARNING, (errcode(ERRCODE_WARNING),
+							errmsg("buffers statistics disabled")));
+
+		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
+
+		/* save stack of calls and current cursor in multicall context */
+		fctx = (pg_qs_fctx *) palloc(sizeof(pg_qs_fctx));
+		fctx->procs = NIL;
+		foreach(i, msgs)
 		{
-			case QUERY_NOT_RUNNING:
-				{
-					PgBackendStatus	*be_status = search_be_status(pid);
-					if (be_status)
-						elog(INFO, "state of backend is %s",
-								be_state_str[be_status->st_state - STATE_UNDEFINED]);
-					else
-						elog(INFO, "backend is not running query");
-					SRF_RETURN_DONE(funcctx);
-				}
-			case STAT_DISABLED:
-				elog(INFO, "query execution statistics disabled");
-				SRF_RETURN_DONE(funcctx);
-			case QS_RETURNED:
-				{
-					TupleDesc	tupdesc;
-					ListCell	*i;
-					int64		max_calls = 0;
+			List 		*qs_stack;
+			stack_msg	*msg = (stack_msg *) lfirst(i);
+			proc_state	*p_state = (proc_state *) palloc(sizeof(proc_state));
 
-					/* print warnings if exist */
-					if (msg->warnings & TIMINIG_OFF_WARNING)
-						ereport(WARNING, (errcode(ERRCODE_WARNING),
-										errmsg("timing statistics disabled")));
-					if (msg->warnings & BUFFERS_OFF_WARNING)
-						ereport(WARNING, (errcode(ERRCODE_WARNING),
-										errmsg("buffers statistics disabled")));
+			qs_stack = deserialize_stack(msg->stack, msg->stack_depth);
 
-					oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
+			p_state->proc = msg->proc;
+			p_state->stack = qs_stack;
+			p_state->frame_index = 0;
+			p_state->frame_cursor = list_head(qs_stack);
 
-					/* save stack of calls and current cursor in multicall context */
-					fctx = (pg_qs_fctx *) palloc(sizeof(pg_qs_fctx));
-					fctx->procs = NIL;
-					foreach(i, msgs)
-					{
-						List 		*qs_stack;
-						stack_msg	*msg = (stack_msg *) lfirst(i);
-						proc_state	*p_state = (proc_state *) palloc(sizeof(proc_state));
-
-						if (msg->result_code != QS_RETURNED)
-							continue;
-
-						AssertState(msg->result_code == QS_RETURNED);
-
-						qs_stack = deserialize_stack(msg->stack, msg->stack_depth);
-
-						p_state->proc = msg->proc;
-						p_state->stack = qs_stack;
-						p_state->frame_index = 0;
-						p_state->frame_cursor = list_head(qs_stack);
-
-						fctx->procs = lappend(fctx->procs, p_state);
-						max_calls += list_length(qs_stack);
-					}
-					fctx->proc_cursor = list_head(fctx->procs);
-
-					funcctx->user_fctx = fctx;
-					funcctx->max_calls = max_calls;
-
-					/* Make tuple descriptor */
-					tupdesc = CreateTemplateTupleDesc(N_ATTRS, false);
-					TupleDescInitEntry(tupdesc, (AttrNumber) 1, "frame_number", INT4OID, -1, 0);
-					TupleDescInitEntry(tupdesc, (AttrNumber) 2, "query_text", TEXTOID, -1, 0);
-					funcctx->tuple_desc = BlessTupleDesc(tupdesc);
-
-					MemoryContextSwitchTo(oldcontext);
-				}
-				break;
+			fctx->procs = lappend(fctx->procs, p_state);
+			max_calls += list_length(qs_stack);
 		}
+		fctx->proc_cursor = list_head(fctx->procs);
+
+		funcctx->user_fctx = fctx;
+		funcctx->max_calls = max_calls;
+
+		/* Make tuple descriptor */
+		tupdesc = CreateTemplateTupleDesc(N_ATTRS, false);
+		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "frame_number", INT4OID, -1, 0);
+		TupleDescInitEntry(tupdesc, (AttrNumber) 2, "query_text", TEXTOID, -1, 0);
+		funcctx->tuple_desc = BlessTupleDesc(tupdesc);
+
+		MemoryContextSwitchTo(oldcontext);
 	}
 
 	/* restore function multicall context */
