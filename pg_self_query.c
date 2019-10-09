@@ -741,6 +741,33 @@ copy_msg(shm_mq_msg *msg)
 	return result;
 }
 
+static int 
+myNanoSleep(time_t sec, long nanosec)
+{
+   /* Setup timespec */
+   struct timespec req;
+   req.tv_sec = sec;
+   req.tv_nsec = nanosec;
+
+   /* Loop until we've slept long enough */
+   do 
+   {
+      /* Store remainder back on top of the original required time */
+      if( 0 != nanosleep( &req, &req ) )
+      {
+          /* If any error other than a signal interrupt occurs, return an error */
+          if(errno != EINTR)
+             return -1; 
+      }
+      else
+      {
+          /* nanosleep succeeded, so exit the loop */
+          break;
+      }
+   } while( req.tv_sec > 0 || req.tv_nsec > 0 )
+   return 0; /* Return success */
+}
+
 static List *
 GetRemoteBackendQueryStates(PGPROC *leader,
 							List *pworkers)
@@ -761,7 +788,7 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 
 	/* initialize message queue that will transfer query states */
 	mq = shm_mq_create(mq, QUEUE_SIZE);
-	nanosleep({0, 1}, NULL);
+	myNanoSleep(0,1);
 	/*
 	 * send signal `QueryStatePollReason` to all processes and define all alive
 	 * 		ones
@@ -769,7 +796,7 @@ GetRemoteBackendQueryStates(PGPROC *leader,
 	sig_result = SendProcSignal(leader->pid,
 								QueryStatePollReason,
 								leader->backendId);
-	nanosleep({0, 1}, NULL);
+	myNanoSleep(0,1);
 	//elog(INFO, "GetRemoteBackendQueryStates 4");
 	if (sig_result == -1)
 		goto signal_error;
