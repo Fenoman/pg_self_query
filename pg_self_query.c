@@ -764,7 +764,7 @@ myNanoSleep(time_t sec, long nanosec)
           /* nanosleep succeeded, so exit the loop */
           break;
       }
-   } while( req.tv_sec > 0 || req.tv_nsec > 0 )
+   } while( req.tv_sec > 0 || req.tv_nsec > 0 );
    return 0; /* Return success */
 }
 
