@@ -530,7 +530,7 @@ pg_self_query(PG_FUNCTION_ARGS)
 		stack_frame	*frame = (stack_frame *) lfirst(p_state->frame_cursor);
 
 		/* Make and return next tuple to caller */
-		if (funcctx->call_cntr = funcctx->max_calls - 1)
+		if (funcctx->call_cntr == funcctx->max_calls - 1)
 		{
 			MemSet(values, 0, sizeof(values));
 			MemSet(nulls, 0, sizeof(nulls));
