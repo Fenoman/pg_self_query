@@ -361,7 +361,7 @@ typedef struct
 typedef struct
 {
 	const char	*query;
-} stack_frame_2fruntime_explain;
+} stack_frame_2;
 
 /*
  *	Convert serialized stack frame into stack_frame record
