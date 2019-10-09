@@ -9,8 +9,7 @@
  */
 
 #include <postgres.h>
-//#include "nodes/pg_list.h"
-#include "storage/shm_mq.h"
+//include "storage/shm_mq.h"
 
 #include "utils/builtins.h"
 #include "utils/memutils.h"
