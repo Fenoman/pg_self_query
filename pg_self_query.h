@@ -51,6 +51,6 @@ extern List 	*QueryDescStack;
 //extern shm_mq 	*mq;
 
 /* signal_handler.c */
-extern void GetQueryState(void);
+extern shm_mq_msg* GetQueryState();
 
 #endif

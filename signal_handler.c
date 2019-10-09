@@ -110,7 +110,7 @@ serialize_stack(char *dest, List *qs_stack)
  * This function is called when fire custom signal QueryStatePollReason
  */
 static shm_mq_msg *
-GetQueryState(void)
+GetQueryState()
 {
 	//shm_mq_handle 	*mqh;
 
