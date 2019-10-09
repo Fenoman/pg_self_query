@@ -485,7 +485,7 @@ pg_self_query(PG_FUNCTION_ARGS)
 						fctx->procs = lappend(fctx->procs, p_state);
 
 						max_calls += list_length(qs_stack);
-						elog(INFO, "max_calls-> %s", (char) max_calls);
+						elog(INFO, "max_calls-> %s", (char *) max_calls);
 					}
 					fctx->proc_cursor = list_head(fctx->procs);
 
