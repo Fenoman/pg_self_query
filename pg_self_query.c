@@ -359,7 +359,10 @@ deserialize_stack(char *src, int stack_depth)
 	for (i = 0; i < stack_depth; i++)
 	{
 		stack_frame	*frame = deserialize_stack_frame(&curr_ptr);
-		result = lappend(result, frame);
+		if (i == (stack_depth - 1))
+		{
+			result = lappend(result, frame);
+		}
 	}
 
 	return result;
@@ -496,6 +499,7 @@ pg_self_query(PG_FUNCTION_ARGS)
 
 						elog(INFO, "max_calls-> %s", max_calls_str[max_calls]);
 						max_calls += list_length(qs_stack);
+						elog(INFO, "max_calls-> %s", max_calls_str[max_calls]);
 					}
 					fctx->proc_cursor = list_head(fctx->procs);
 
