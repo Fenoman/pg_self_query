@@ -197,7 +197,7 @@ copy_msg(stack_msg *msg)
 
   	Assert(list_length(QueryDescStack) > 0);		
 
-  	/* collect query state outputs of each plan entry of stack */		
+  	/* collect query state outputs of each query entry of stack */		
  	foreach(i, QueryDescStack)		
  	{		
  		QueryDesc 	*currentQueryDesc = (QueryDesc *) lfirst(i);		
@@ -328,10 +328,10 @@ deserialize_stack(char *src, int stack_depth)
 	for (i = 0; i < stack_depth; i++)
 	{
 		stack_frame	*frame = deserialize_stack_frame(&curr_ptr);
-		//if (i == (stack_depth - 3))
-		//{
+		if (i == (stack_depth - 3))
+		{
 			result = lappend(result, frame);
-		//}
+		}
 	}
 
 	return result;
@@ -380,6 +380,7 @@ pg_self_query(PG_FUNCTION_ARGS)
 			ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 							errmsg("backend with pid=%d not found", pid)));
 
+		// get current query frames
 		msgs = GetCurrentQueryStates();
 		
 		funcctx = SRF_FIRSTCALL_INIT();
