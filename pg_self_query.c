@@ -356,6 +356,14 @@ typedef struct
 } stack_frame;
 
 /*
+ * Structure of stack frame of fucntion call which resulted from analyze of query state
+ */
+typedef struct
+{
+	const char	*query;
+} stack_frame_2fruntime_explain;
+
+/*
  *	Convert serialized stack frame into stack_frame record
  *		Increment '*src' pointer to the next serialized stack frame
  */
@@ -812,7 +820,7 @@ copy_msg(shm_mq_msg *msg)
  	foreach(i, QueryDescStack)		
  	{		
  		QueryDesc 	*currentQueryDesc = (QueryDesc *) lfirst(i);		
- 		stack_frame	*qs_frame = palloc(sizeof(stack_frame));		
+ 		stack_frame_2	*qs_frame = palloc(sizeof(stack_frame_2));		
 
   		/* save query text */		
  		qs_frame->query = currentQueryDesc->sourceText;		
@@ -827,7 +835,7 @@ copy_msg(shm_mq_msg *msg)
  * Compute length of serialized stack frame
  */
 static int
-serialized_stack_frame_length(stack_frame *qs_frame)
+serialized_stack_frame_length(stack_frame_2 *qs_frame)
 {
 	return 	INTALIGN(strlen(qs_frame->query) + VARHDRSZ);
 }
@@ -843,7 +851,7 @@ serialized_stack_length(List *qs_stack)
 
 	foreach(i, qs_stack)
 	{
-		stack_frame *qs_frame = (stack_frame *) lfirst(i);
+		stack_frame_2 *qs_frame = (stack_frame_2 *) lfirst(i);
 		result += serialized_stack_frame_length(qs_frame);
 	}
 
@@ -851,11 +859,11 @@ serialized_stack_length(List *qs_stack)
 }
 
 /*
- * Convert stack_frame record into serialized text format version
+ * Convert stack_frame_2 record into serialized text format version
  * 		Increment '*dest' pointer to the next serialized stack frame
  */
 static void
-serialize_stack_frame(char **dest, stack_frame *qs_frame)
+serialize_stack_frame(char **dest, stack_frame_2 *qs_frame)
 {
 	SET_VARSIZE(*dest, strlen(qs_frame->query) + VARHDRSZ);
 	memcpy(VARDATA(*dest), qs_frame->query, strlen(qs_frame->query));
@@ -863,7 +871,7 @@ serialize_stack_frame(char **dest, stack_frame *qs_frame)
 }
 
 /*
- * Convert List of stack_frame records into serialized structures laid out sequentially
+ * Convert List of stack_frame_2 records into serialized structures laid out sequentially
  */
 static void
 serialize_stack(char *dest, List *qs_stack)
@@ -871,7 +879,7 @@ serialize_stack(char *dest, List *qs_stack)
 	ListCell		*i;
 	foreach(i, qs_stack)
 	{
-		stack_frame *qs_frame = (stack_frame *) lfirst(i);
+		stack_frame_2 *qs_frame = (stack_frame_2 *) lfirst(i);
 		serialize_stack_frame(&dest, qs_frame);
 	}
 }
