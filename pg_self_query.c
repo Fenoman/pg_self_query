@@ -39,15 +39,6 @@ static void qs_ExecutorFinish(QueryDesc *queryDesc);
 
 /* Global variables */
 List 					*QueryDescStack = NIL;
-static const char		*be_state_str[] = {						/* BackendState -> string repr */
-							"undefined",						 /* STATE_UNDEFINED */
-							"idle",								/* STATE_IDLE */
-							"active",							/* STATE_RUNNING */
-							"idle in transaction",				/* STATE_IDLEINTRANSACTION */
-							"fastpath function call",			/* STATE_FASTPATH */
-							"idle in transaction (aborted)",	/* STATE_IDLEINTRANSACTION_ABORTED */
-							"disabled",							/* STATE_DISABLED */
-						};
 
 /*
  *	Format of stack information
@@ -105,17 +96,16 @@ _PG_fini(void)
 static void
 qs_ExecutorStart(QueryDesc *queryDesc, int eflags)
 {
-		/* Enable per-node instrumentation */
-		if ((eflags & EXEC_FLAG_EXPLAIN_ONLY) == 0)
-		{
-			queryDesc->instrument_options |= INSTRUMENT_ROWS;
-		}
+	/* Enable per-node instrumentation */
+	if ((eflags & EXEC_FLAG_EXPLAIN_ONLY) == 0)
+	{
+		queryDesc->instrument_options |= INSTRUMENT_ROWS;
+	}
 
-		if (prev_ExecutorStart)
-			prev_ExecutorStart(queryDesc, eflags);
-		else
-			standard_ExecutorStart(queryDesc, eflags);
-
+	if (prev_ExecutorStart)
+		prev_ExecutorStart(queryDesc, eflags);
+	else
+		standard_ExecutorStart(queryDesc, eflags);
 }
 
 /*
@@ -166,28 +156,6 @@ qs_ExecutorFinish(QueryDesc *queryDesc)
 		PG_RE_THROW();
 	}
 	PG_END_TRY();
-}
-
-/*
- * Find PgBackendStatus entry
- */
-static PgBackendStatus *
-search_be_status(int pid)
-{
-	int beid;
-
-	if (pid <= 0)
-		return NULL;
-
-	for (beid = 1; beid <= pgstat_fetch_stat_numbackends(); beid++)
-	{
-		PgBackendStatus *be_status = pgstat_fetch_stat_beentry(beid);
-
-		if (be_status && be_status->st_procpid == pid)
-			return be_status;
-	}
-
-	return NULL;
 }
 
 /*
@@ -402,6 +370,9 @@ pg_self_query(PG_FUNCTION_ARGS)
 		PGPROC			*proc;
 		stack_msg		*msg;
 		List			*msgs;
+		TupleDesc	tupdesc;
+		ListCell	*i;
+		int64		max_calls = 0;
 							
 		proc = BackendPidGetProc(pid);
 
@@ -420,10 +391,6 @@ pg_self_query(PG_FUNCTION_ARGS)
 		}
 
 		msg = (stack_msg *) linitial(msgs);
-
-		TupleDesc	tupdesc;
-		ListCell	*i;
-		int64		max_calls = 0;
 
 		/* print warnings if exist */
 		if (msg->warnings & TIMINIG_OFF_WARNING)
