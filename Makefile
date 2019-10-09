@@ -1,7 +1,7 @@
 # contrib/pg_self_query/Makefile
 
 MODULE_big = pg_self_query
-OBJS = pg_self_query.o signal_handler.o $(WIN32RES)
+OBJS = pg_self_query.o $(WIN32RES)
 EXTENSION = pg_self_query
 EXTVERSION = 1.0
 DATA_built = $(EXTENSION)--$(EXTVERSION).sql
