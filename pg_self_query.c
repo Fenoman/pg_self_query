@@ -20,7 +20,7 @@
 //#include "nodes/nodeFuncs.h"
 //#include "nodes/print.h"
 //#include "pgstat.h"
-//#include "postmaster/bgworker.h"
+#include "postmaster/bgworker.h"
 #include "storage/ipc.h"
 #include "storage/s_lock.h"
 #include "storage/spin.h"
