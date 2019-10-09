@@ -15,7 +15,7 @@
 #include "catalog/pg_type.h"
 #include "funcapi.h"
 //#include "executor/execParallel.h"
-#include "executor/executor.h"
+//#include "executor/executor.h"
 #include "miscadmin.h"
 #include "nodes/nodeFuncs.h"
 #include "nodes/print.h"
