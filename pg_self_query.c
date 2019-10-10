@@ -33,9 +33,9 @@ void		_PG_init(void);
 void		_PG_fini(void);
 
 /* hooks defined in this module */
-static void qs_ExecutorStart(QueryDesc *queryDesc, int eflags);
-static void qs_ExecutorRun(QueryDesc *queryDesc, ScanDirection direction, uint64 count, bool execute_once);
-static void qs_ExecutorFinish(QueryDesc *queryDesc);
+//static void qs_ExecutorStart(QueryDesc *queryDesc, int eflags);
+//static void qs_ExecutorRun(QueryDesc *queryDesc, ScanDirection direction, uint64 count, bool execute_once);
+//static void qs_ExecutorFinish(QueryDesc *queryDesc);
 
 /* Global variables */
 List 					*QueryDescStack = NIL;
@@ -56,107 +56,107 @@ typedef struct
 /*
  * Module load callback
  */
-void
-_PG_init(void)
-{
-	if (!process_shared_preload_libraries_in_progress)
-		return;
+// void
+// _PG_init(void)
+// {
+// 	if (!process_shared_preload_libraries_in_progress)
+// 		return;
 
-	EmitWarningsOnPlaceholders("pg_self_query");
+// 	EmitWarningsOnPlaceholders("pg_self_query");
 
-	/* Install hooks */
-	prev_ExecutorStart = ExecutorStart_hook;
-	ExecutorStart_hook = qs_ExecutorStart;
-	prev_ExecutorRun = ExecutorRun_hook;
-	ExecutorRun_hook = qs_ExecutorRun;
-	prev_ExecutorFinish = ExecutorFinish_hook;
-	ExecutorFinish_hook = qs_ExecutorFinish;
-}
+// 	/* Install hooks */
+// 	prev_ExecutorStart = ExecutorStart_hook;
+// 	ExecutorStart_hook = qs_ExecutorStart;
+// 	prev_ExecutorRun = ExecutorRun_hook;
+// 	ExecutorRun_hook = qs_ExecutorRun;
+// 	prev_ExecutorFinish = ExecutorFinish_hook;
+// 	ExecutorFinish_hook = qs_ExecutorFinish;
+// }
 
 /*
  * Module unload callback
  */
-void
-_PG_fini(void)
-{
-	/* clear global state */
-	list_free(QueryDescStack);
+// void
+// _PG_fini(void)
+// {
+// 	/* clear global state */
+// 	list_free(QueryDescStack);
 
-	/* Uninstall hooks. */
-	ExecutorStart_hook = prev_ExecutorStart;
-	ExecutorRun_hook = prev_ExecutorRun;
-	ExecutorFinish_hook = prev_ExecutorFinish;
-}
+// 	/* Uninstall hooks. */
+// 	ExecutorStart_hook = prev_ExecutorStart;
+// 	ExecutorRun_hook = prev_ExecutorRun;
+// 	ExecutorFinish_hook = prev_ExecutorFinish;
+// }
 
 /*
  * ExecutorStart hook:
  * 		set up flags to store runtime statistics,
  * 		push current query description in global stack
  */
-static void
-qs_ExecutorStart(QueryDesc *queryDesc, int eflags)
-{
-	/* Enable per-node instrumentation */
-	if ((eflags & EXEC_FLAG_EXPLAIN_ONLY) == 0)
-	{
-		queryDesc->instrument_options |= INSTRUMENT_ROWS;
-	}
+// static void
+// qs_ExecutorStart(QueryDesc *queryDesc, int eflags)
+// {
+// 	/* Enable per-node instrumentation */
+// 	if ((eflags & EXEC_FLAG_EXPLAIN_ONLY) == 0)
+// 	{
+// 		queryDesc->instrument_options |= INSTRUMENT_ROWS;
+// 	}
 
-	if (prev_ExecutorStart)
-		prev_ExecutorStart(queryDesc, eflags);
-	else
-		standard_ExecutorStart(queryDesc, eflags);
-}
+// 	if (prev_ExecutorStart)
+// 		prev_ExecutorStart(queryDesc, eflags);
+// 	else
+// 		standard_ExecutorStart(queryDesc, eflags);
+// }
 
 /*
  * ExecutorRun:
  * 		Catch any fatal signals
  */
-static void
-qs_ExecutorRun(QueryDesc *queryDesc, ScanDirection direction, uint64 count,
-			   bool execute_once)
-{
-	QueryDescStack = lcons(queryDesc, QueryDescStack);
-	PG_TRY();
-	{
-		if (prev_ExecutorRun)
-			prev_ExecutorRun(queryDesc, direction, count, execute_once);
-		else
-			standard_ExecutorRun(queryDesc, direction, count, execute_once);
-		QueryDescStack = list_delete_first(QueryDescStack);
-	}
-	PG_CATCH();
-	{
-		QueryDescStack = list_delete_first(QueryDescStack);
-		PG_RE_THROW();
-	}
-	PG_END_TRY();
-}
+// static void
+// qs_ExecutorRun(QueryDesc *queryDesc, ScanDirection direction, uint64 count,
+// 			   bool execute_once)
+// {
+// 	QueryDescStack = lcons(queryDesc, QueryDescStack);
+// 	PG_TRY();
+// 	{
+// 		if (prev_ExecutorRun)
+// 			prev_ExecutorRun(queryDesc, direction, count, execute_once);
+// 		else
+// 			standard_ExecutorRun(queryDesc, direction, count, execute_once);
+// 		QueryDescStack = list_delete_first(QueryDescStack);
+// 	}
+// 	PG_CATCH();
+// 	{
+// 		QueryDescStack = list_delete_first(QueryDescStack);
+// 		PG_RE_THROW();
+// 	}
+// 	PG_END_TRY();
+// }
 
 /*
  * ExecutorFinish:
  * 		Catch any fatal signals
  */
-static void
-qs_ExecutorFinish(QueryDesc *queryDesc)
-{
-	QueryDescStack = lcons(queryDesc, QueryDescStack);
-	PG_TRY();
-	{
-		if (prev_ExecutorFinish)
-			prev_ExecutorFinish(queryDesc);
-		else
-			standard_ExecutorFinish(queryDesc);
-		QueryDescStack = list_delete_first(QueryDescStack);
+// static void
+// qs_ExecutorFinish(QueryDesc *queryDesc)
+// {
+// 	QueryDescStack = lcons(queryDesc, QueryDescStack);
+// 	PG_TRY();
+// 	{
+// 		if (prev_ExecutorFinish)
+// 			prev_ExecutorFinish(queryDesc);
+// 		else
+// 			standard_ExecutorFinish(queryDesc);
+// 		QueryDescStack = list_delete_first(QueryDescStack);
 
-	}
-	PG_CATCH();
-	{
-		QueryDescStack = list_delete_first(QueryDescStack);
-		PG_RE_THROW();
-	}
-	PG_END_TRY();
-}
+// 	}
+// 	PG_CATCH();
+// 	{
+// 		QueryDescStack = list_delete_first(QueryDescStack);
+// 		PG_RE_THROW();
+// 	}
+// 	PG_END_TRY();
+// }
 
 /*
  * Structure of stack frame of fucntion call for decomposition
