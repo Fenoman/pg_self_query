@@ -25,9 +25,9 @@ PG_MODULE_MAGIC;
 #define BUFFERS_OFF_WARNING 2
 
 /* Saved hook values in case of unload */
-static ExecutorStart_hook_type prev_ExecutorStart = NULL;
-static ExecutorRun_hook_type prev_ExecutorRun = NULL;
-static ExecutorFinish_hook_type prev_ExecutorFinish = NULL;
+//static ExecutorStart_hook_type prev_ExecutorStart = NULL;
+//static ExecutorRun_hook_type prev_ExecutorRun = NULL;
+//static ExecutorFinish_hook_type prev_ExecutorFinish = NULL;
 
 void		_PG_init(void);
 void		_PG_fini(void);
