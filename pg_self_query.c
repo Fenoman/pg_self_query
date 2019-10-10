@@ -29,8 +29,8 @@ PG_MODULE_MAGIC;
 //static ExecutorRun_hook_type prev_ExecutorRun = NULL;
 //static ExecutorFinish_hook_type prev_ExecutorFinish = NULL;
 
-void		_PG_init(void);
-void		_PG_fini(void);
+//void		_PG_init(void);
+//void		_PG_fini(void);
 
 /* hooks defined in this module */
 //static void qs_ExecutorStart(QueryDesc *queryDesc, int eflags);
