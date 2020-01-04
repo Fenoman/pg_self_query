@@ -309,7 +309,11 @@ pg_self_query(PG_FUNCTION_ARGS)
 		funcctx->max_calls = max_calls;
 
 		/* Make tuple descriptor */
+		#if PG_VERSION_NUM < 120000
 		tupdesc = CreateTemplateTupleDesc(N_ATTRS, false);
+		#else
+		tupdesc = CreateTemplateTupleDesc(N_ATTRS);
+		#endif
 		TupleDescInitEntry(tupdesc, (AttrNumber) 1, "frame_number", INT4OID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 2, "query_text", TEXTOID, -1, 0);
 		funcctx->tuple_desc = BlessTupleDesc(tupdesc);
