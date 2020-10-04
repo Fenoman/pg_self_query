@@ -209,7 +209,7 @@ deserialize_stack(char *src, int stack_depth)
 	for (i = 0; i < stack_depth; i++)
 	{
 		stack_frame	*frame = deserialize_stack_frame(&curr_ptr);
-		if (i == (stack_depth - 2))
+		if (i <= (stack_depth - 2))
 		{
 			result = lappend(result, frame);
 		}
