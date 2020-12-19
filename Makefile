@@ -3,7 +3,7 @@
 MODULE_big = pg_self_query
 OBJS = pg_self_query.o $(WIN32RES)
 EXTENSION = pg_self_query
-EXTVERSION = 1.0
+EXTVERSION = 1.2
 DATA_built = $(EXTENSION)--$(EXTVERSION).sql
 PGFILEDESC = "pg_self_query - facility to get current query for logging"
 
