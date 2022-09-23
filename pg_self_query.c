@@ -15,6 +15,7 @@
 #include "miscadmin.h"
 #include "pgstat.h"
 #include "storage/procarray.h"
+#include "storage/proc.h"
 #include "utils/guc.h"
 
 #ifdef PG_MODULE_MAGIC
