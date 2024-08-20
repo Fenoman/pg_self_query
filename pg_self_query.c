@@ -290,19 +290,20 @@ pg_self_query(PG_FUNCTION_ARGS)
 		fctx->procs = NIL;
 		foreach(i, msgs)
 		{
-			List 		*qs_stack;
-			stack_msg	*msg = (stack_msg *) lfirst(i);
-			proc_state	*p_state = (proc_state *) palloc(sizeof(proc_state));
+            List 		*qs_stack;
+            shm_mq_msg	*current_msg = (shm_mq_msg *) lfirst(i);
+            proc_state	*p_state = (proc_state *) palloc(sizeof(proc_state));
+            
+            qs_stack = deserialize_stack(current_msg->stack,
+                                         current_msg->stack_depth);
 
-			qs_stack = deserialize_stack(msg->stack, msg->stack_depth);
+            p_state->proc = current_msg->proc;
+            p_state->stack = qs_stack;
+            p_state->frame_index = 0;
+            p_state->frame_cursor = list_head(qs_stack);
 
-			p_state->proc = msg->proc;
-			p_state->stack = qs_stack;
-			p_state->frame_index = 0;
-			p_state->frame_cursor = list_head(qs_stack);
-
-			fctx->procs = lappend(fctx->procs, p_state);
-			max_calls += list_length(qs_stack);
+            fctx->procs = lappend(fctx->procs, p_state);
+            max_calls += list_length(qs_stack);
 		}
 		fctx->proc_cursor = list_head(fctx->procs);
 
