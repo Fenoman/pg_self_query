@@ -33,10 +33,8 @@ List 					*QueryDescStack = NIL;
  */
 typedef struct
 {
-	int     reqid;
 	int		length;							/* size of message record, for sanity check */
 	PGPROC	*proc;
-	PG_QS_RequestResult	result_code;
 	int		warnings;						/* bitmap of warnings */
 	int		stack_depth;
 	char	stack[FLEXIBLE_ARRAY_MEMBER];	/* sequencially laid out stack frames in form of text records */
