@@ -9,15 +9,28 @@
  */
 
 #include <postgres.h>
+#include "commands/explain.h"
+#include "nodes/pg_list.h"
+#include "storage/shm_mq.h"
+
 #include "access/htup_details.h"
 #include "catalog/pg_type.h"
 #include "funcapi.h"
+#include "executor/execParallel.h"
+#include "executor/executor.h"
 #include "miscadmin.h"
+#include "nodes/nodeFuncs.h"
+#include "nodes/print.h"
 #include "pgstat.h"
+#include "postmaster/bgworker.h"
+#include "storage/ipc.h"
+#include "storage/s_lock.h"
+#include "storage/spin.h"
 #include "storage/procarray.h"
-#include "storage/proc.h"
-#include "storage/shm_mq.h"
+#include "storage/procsignal.h"
+#include "storage/shm_toc.h"
 #include "utils/guc.h"
+#include "utils/timestamp.h"
 
 #ifdef PG_MODULE_MAGIC
 PG_MODULE_MAGIC;
