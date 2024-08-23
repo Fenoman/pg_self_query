@@ -16,6 +16,7 @@
 #include "pgstat.h"
 #include "storage/procarray.h"
 #include "storage/proc.h"
+#include "storage/shm_mq.h"
 #include "utils/guc.h"
 
 #ifdef PG_MODULE_MAGIC
