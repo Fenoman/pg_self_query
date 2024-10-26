@@ -1,3 +1,7 @@
+# !!! Warning !!!
+
+This is an outdated version; please use `pg_query_stack` instead! You can only use this extension if you have a fork from PostgresPro of version 13 or lower.
+
 # Fork info
 `pg_self_query` is based on the `pg_query_state` extension and is necessary for one purpose - to receive the current (not the top level like `current_query()`) query for saving it in the audit subsystem (in audit triggers).
 
